@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	urlVanity = "http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
+	urlVanity = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
 )
 
 var (
@@ -411,7 +411,7 @@ func ResolveSID64(query string) SID64 {
 	} else if reSID3.MatchString(strings.ToUpper(query)) {
 		return SID3ToSID64(SID3(query))
 	}
-	resp, err := http.Get("http://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?" + url.Values{
+	resp, err := http.Get(urlVanity + url.Values{
 		"key":       {apiKey},
 		"vanityurl": {query},
 	}.Encode())
