@@ -1,8 +1,11 @@
 package steamid
 
 import (
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
+	"os"
 	"testing"
+	"time"
 )
 
 func TestParseStatus(t *testing.T) {
@@ -42,31 +45,62 @@ edicts  : 731 used of 2048 max
 #     27 "Cyndaquil"         [U:1:198198697]     00:31      131    0 active
 `
 	ids := SIDSFromStatus(s)
-	assert.NotNil(t, ids)
-	assert.Equal(t, len(ids), 24)
+	require.NotNil(t, ids)
+	require.Equal(t, len(ids), 24)
+}
+
+func TestRandSID64(t *testing.T) {
+	require.True(t, RandSID64().Valid())
+}
+
+func TestSID64FromString(t *testing.T) {
+	require.Equal(t, SID64(76561198132612090), SID64FromString("76561198132612090"))
+	require.Equal(t, SID64(0), SID64FromString("asdf"))
+	require.Equal(t, SID64(0), SID64FromString(""))
+}
+
+func TestGIDFromString(t *testing.T) {
+	require.Equal(t, GID(103582791441572968), GIDFromString("103582791441572968"))
+	require.Equal(t, GID(0), GIDFromString("asdf"))
+	require.Equal(t, GID(0), GIDFromString(""))
 }
 
 func TestConversions(t *testing.T) {
-	assert.Equal(t, SID3ToSID32("[U:1:172346362]"), SID32(172346362))
-	assert.Equal(t, SID3ToSID64("[U:1:172346362]"), SID64(76561198132612090))
-	assert.Equal(t, SID3ToSID("[U:1:172346362]"), SID("STEAM_0:0:86173181"))
-	assert.Equal(t, SID32ToSID3(172346362), SID3("[U:1:172346362]"))
-	assert.Equal(t, SID32ToSID64(172346362), SID64(76561198132612090))
-	assert.Equal(t, SID32ToSteamID(172346362), SID("STEAM_0:0:86173181"))
-	assert.Equal(t, SID64ToSID3(76561198132612090), SID3("[U:1:172346362]"))
-	assert.Equal(t, SID64ToSID32(76561198132612090), SID32(172346362))
-	assert.Equal(t, SID64ToSteamID(76561198132612090), SID("STEAM_0:0:86173181"))
-	assert.Equal(t, SIDToSID3("STEAM_0:0:86173181"), SID3("[U:1:172346362]"))
-	assert.Equal(t, SIDToSID32("STEAM_0:0:86173181"), SID32(172346362))
-	assert.Equal(t, SIDToSID64("STEAM_0:0:86173181"), SID64(76561198132612090))
+	require.Equal(t, SID3ToSID32("[U:1:172346362]"), SID32(172346362))
+	require.Equal(t, SID3ToSID64("[U:1:172346362]"), SID64(76561198132612090))
+	require.Equal(t, SID3ToSID("[U:1:172346362]"), SID("STEAM_0:0:86173181"))
+	require.Equal(t, SID32ToSID3(172346362), SID3("[U:1:172346362]"))
+	require.Equal(t, SID32ToSID64(172346362), SID64(76561198132612090))
+	require.Equal(t, SID32ToSteamID(172346362), SID("STEAM_0:0:86173181"))
+	require.Equal(t, SID64ToSID3(76561198132612090), SID3("[U:1:172346362]"))
+	require.Equal(t, SID64ToSID32(76561198132612090), SID32(172346362))
+	require.Equal(t, SID64ToSteamID(76561198132612090), SID("STEAM_0:0:86173181"))
+	require.Equal(t, SIDToSID3("STEAM_0:0:86173181"), SID3("[U:1:172346362]"))
+	require.Equal(t, SIDToSID32("STEAM_0:0:86173181"), SID32(172346362))
+	require.Equal(t, SIDToSID64("STEAM_0:0:86173181"), SID64(76561198132612090))
+}
+
+func TestPlayerSummaries(t *testing.T) {
+	if apiKey == "" {
+		t.Skip("steam_api_key unset, SetKey() required")
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	ids := []SID64{76561198132612090, 76561197961279983, 76561197960435530}
+	p, err := PlayerSummaries(ctx, ids)
+	require.NoError(t, err)
+	require.Equal(t, len(ids), len(p))
 }
 
 func TestResolveGID(t *testing.T) {
-	gid1 := ResolveGID("SQTreeHouse")
-	assert.True(t, gid1.Valid())
-	assert.Equal(t, gid1, GID(103582791441572968))
-	gid2 := ResolveGID("SQTreeHouseHJHJHSDAF")
-	assert.False(t, gid2.Valid())
+	gid1, err := ResolveGID("SQTreeHouse")
+	require.NoError(t, err, "Failed to fetch gid")
+	require.True(t, gid1.Valid())
+	require.Equal(t, gid1, GID(103582791441572968))
+	gid2, err2 := ResolveGID("SQTreeHouseHJHJHSDAF")
+	require.Errorf(t, err2, "Failed to fetch gid2")
+	require.False(t, gid2.Valid())
 }
 
 func TestResolveSID(t *testing.T) {
@@ -74,22 +108,35 @@ func TestResolveSID(t *testing.T) {
 		t.Skip("steam_api_key unset, SetKey() required")
 		return
 	}
-	sid1 := ResolveSID64("https://steamcommunity.com/id/SQUIRRELLY")
-	assert.Equal(t, sid1, SID64(76561197961279983))
+	sid1, err := ResolveSID64("https://steamcommunity.com/id/SQUIRRELLY")
+	require.NoError(t, err)
+	require.Equal(t, sid1, SID64(76561197961279983))
 
-	sid2 := ResolveSID64("https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
-	assert.False(t, sid2.Valid())
+	sid2, err := ResolveSID64("https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
+	require.Error(t, err)
+	require.False(t, sid2.Valid())
 
-	sid3 := ResolveSID64("http://steamcommunity.com/profiles/76561197961279983")
-	assert.Equal(t, sid3, SID64(76561197961279983))
+	sid3, err := ResolveSID64("http://steamcommunity.com/profiles/76561197961279983")
+	require.NoError(t, err)
+	require.Equal(t, sid3, SID64(76561197961279983))
 
-	sid4 := ResolveSID64("[U:1:1014255]")
-	assert.Equal(t, sid4, SID64(76561197961279983))
+	sid4, err := ResolveSID64("[U:1:1014255]")
+	require.Equal(t, sid4, SID64(76561197961279983))
 
-	sid5 := ResolveSID64("STEAM_0:1:507127")
-	assert.Equal(t, sid5, SID64(76561197961279983))
+	sid5, err := ResolveSID64("STEAM_0:1:507127")
+	require.Equal(t, sid5, SID64(76561197961279983))
+	require.NoError(t, err)
 
-	sid6 := ResolveSID64("")
-	assert.False(t, sid6.Valid())
+	sid6, err := ResolveSID64("")
+	require.Error(t, err)
+	require.False(t, sid6.Valid())
 
+}
+
+func TestMain(m *testing.M) {
+	key, found := os.LookupEnv("STEAM_TOKEN")
+	if found {
+		SetKey(key)
+	}
+	os.Exit(m.Run())
 }
