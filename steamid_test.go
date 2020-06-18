@@ -54,15 +54,27 @@ func TestRandSID64(t *testing.T) {
 }
 
 func TestSID64FromString(t *testing.T) {
-	require.Equal(t, SID64(76561198132612090), SID64FromString("76561198132612090"))
-	require.Equal(t, SID64(0), SID64FromString("asdf"))
-	require.Equal(t, SID64(0), SID64FromString(""))
+	v, err := SID64FromString("76561198132612090")
+	require.NoError(t, err)
+	require.Equal(t, SID64(76561198132612090), v)
+	v2, err := SID64FromString("asdf")
+	require.Error(t, err)
+	require.Equal(t, SID64(0), v2)
+	v3, err := SID64FromString("")
+	require.Error(t, err)
+	require.Equal(t, SID64(0), v3)
 }
 
 func TestGIDFromString(t *testing.T) {
-	require.Equal(t, GID(103582791441572968), GIDFromString("103582791441572968"))
-	require.Equal(t, GID(0), GIDFromString("asdf"))
-	require.Equal(t, GID(0), GIDFromString(""))
+	g0, err := GIDFromString("103582791441572968")
+	require.NoError(t, err)
+	require.Equal(t, GID(103582791441572968), g0)
+	g1, err := GIDFromString("asdf")
+	require.Error(t, err)
+	require.Equal(t, GID(0), g1)
+	g2, err := GIDFromString("")
+	require.Error(t, err)
+	require.Equal(t, GID(0), g2)
 }
 
 func TestConversions(t *testing.T) {
@@ -94,11 +106,11 @@ func TestPlayerSummaries(t *testing.T) {
 }
 
 func TestResolveGID(t *testing.T) {
-	gid1, err := ResolveGID("SQTreeHouse")
+	gid1, err := ResolveGID(context.Background(), "SQTreeHouse")
 	require.NoError(t, err, "Failed to fetch gid")
 	require.True(t, gid1.Valid())
 	require.Equal(t, gid1, GID(103582791441572968))
-	gid2, err2 := ResolveGID("SQTreeHouseHJHJHSDAF")
+	gid2, err2 := ResolveGID(context.Background(), "SQTreeHouseHJHJHSDAF")
 	require.Errorf(t, err2, "Failed to fetch gid2")
 	require.False(t, gid2.Valid())
 }
@@ -108,26 +120,27 @@ func TestResolveSID(t *testing.T) {
 		t.Skip("steam_api_key unset, SetKey() required")
 		return
 	}
-	sid1, err := ResolveSID64("https://steamcommunity.com/id/SQUIRRELLY")
+	sid1, err := ResolveSID64(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
 	require.NoError(t, err)
 	require.Equal(t, sid1, SID64(76561197961279983))
 
-	sid2, err := ResolveSID64("https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
+	sid2, err := ResolveSID64(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
 	require.Error(t, err)
 	require.False(t, sid2.Valid())
 
-	sid3, err := ResolveSID64("http://steamcommunity.com/profiles/76561197961279983")
+	sid3, err := ResolveSID64(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
 	require.NoError(t, err)
 	require.Equal(t, sid3, SID64(76561197961279983))
 
-	sid4, err := ResolveSID64("[U:1:1014255]")
+	sid4, err := ResolveSID64(context.Background(), "[U:1:1014255]")
+	require.NoError(t, err)
 	require.Equal(t, sid4, SID64(76561197961279983))
 
-	sid5, err := ResolveSID64("STEAM_0:1:507127")
+	sid5, err := ResolveSID64(context.Background(), "STEAM_0:1:507127")
 	require.Equal(t, sid5, SID64(76561197961279983))
 	require.NoError(t, err)
 
-	sid6, err := ResolveSID64("")
+	sid6, err := ResolveSID64(context.Background(), "")
 	require.Error(t, err)
 	require.False(t, sid6.Valid())
 
