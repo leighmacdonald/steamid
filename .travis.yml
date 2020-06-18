@@ -11,7 +11,7 @@ before_script:
   - go get github.com/schrej/godacov
 script:
   - golangci-lint run
-  - go test -race -coverprofile c.out $(GO_FLAGS) ./...
+  - go test -race -coverprofile c.out ./...
 after_script:
   - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
   - godacov -t $CODACY_KEY -r ./c.out -c $TRAVIS_COMMIT
