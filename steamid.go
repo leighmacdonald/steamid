@@ -48,12 +48,28 @@ var (
 		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 )
 
+// AppID is the Steam appdb ID
 type AppID int64
-type SID string   // STEAM_0:0:86173181
-type SID64 uint64 // 76561198132612090
-type SID32 uint32 // 172346362
-type SID3 string  // [U:1:172346362]
-type GID uint64   // 103582791453729676
+
+// SID represents a SteamID
+// STEAM_0:0:86173181
+type SID string
+
+// SID64 represents a Steam64
+// 76561198132612090
+type SID64 uint64
+
+// SID32 represents a Steam32
+// 172346362
+type SID32 uint32
+
+// SID3 represents a Steam3
+// [U:1:172346362]
+type SID3 string
+
+// GID represents a GroupID (64bit)
+// 103582791453729676
+type GID uint64 // 103582791453729676
 
 // String renders the GID as a int64 string
 func (t GID) String() string {
@@ -326,8 +342,8 @@ func SIDSFromStatus(text string) []SID64 {
 	if found == nil {
 		return nil
 	}
-	for _, strId := range found {
-		ids = append(ids, SID3ToSID64(SID3(strId)))
+	for _, strID := range found {
+		ids = append(ids, SID3ToSID64(SID3(strID)))
 	}
 	return ids
 }
@@ -368,7 +384,7 @@ func PlayerSummaries(ctx context.Context, steamIDs []SID64) ([]PlayerSummary, er
 	if apiKey == "" {
 		return ps, ErrNoAPIKey
 	}
-	const baseUrl = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=%s&steamids=%s"
+	const baseURL = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=%s&steamids=%s"
 	if len(steamIDs) == 0 {
 		return ps, nil
 	}
@@ -379,7 +395,7 @@ func PlayerSummaries(ctx context.Context, steamIDs []SID64) ([]PlayerSummary, er
 	for _, id := range steamIDs {
 		idStrings = append(idStrings, fmt.Sprintf("%d", id))
 	}
-	u := fmt.Sprintf(baseUrl, apiKey, strings.Join(idStrings, ","))
+	u := fmt.Sprintf(baseURL, apiKey, strings.Join(idStrings, ","))
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return ps, errors.Wrap(err, "Failed to create new request")
@@ -402,7 +418,7 @@ func PlayerSummaries(ctx context.Context, steamIDs []SID64) ([]PlayerSummary, er
 	return r.Response.Players, nil
 }
 
-// ResolveGID tries to resolve the GroupID from a group custom url.
+// ResolveGID tries to resolve the GroupID from a group custom URL.
 // NOTE This may be prone to error due to not being a real api endpoint
 func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	m := reGroupURL.FindStringSubmatch(groupVanityURL)
@@ -427,11 +443,11 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	}
 	groupIDTags := reGroupIDTags.FindSubmatch(content)
 	if len(groupIDTags) >= 2 {
-		groupId, err := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
+		groupID, err := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
 		if err != nil {
 			return GID(0), errors.Wrapf(err, "Failed to convert GID to int")
 		}
-		return GID(groupId), nil
+		return GID(groupID), nil
 	}
 	return GID(0), errors.Errorf("Failed to resolve GID: %s", content)
 }
@@ -459,22 +475,22 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	var vanityUrlResponse struct {
+	var vanityURLResponse struct {
 		Response struct {
 			Steamid string
 			Success int
 		}
 	}
-	if err := json.Unmarshal(content, &vanityUrlResponse); err != nil {
+	if err := json.Unmarshal(content, &vanityURLResponse); err != nil {
 		return SID64(0), errors.Wrap(err, "Failed to decode json vanity response")
 	}
-	if vanityUrlResponse.Response.Success != 1 {
-		return SID64(0), errors.Errorf("Invalid success code received: %d", vanityUrlResponse.Response.Success)
+	if vanityURLResponse.Response.Success != 1 {
+		return SID64(0), errors.Errorf("Invalid success code received: %d", vanityURLResponse.Response.Success)
 	}
-	if len(vanityUrlResponse.Response.Steamid) != 17 {
-		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityUrlResponse.Response.Steamid)
+	if len(vanityURLResponse.Response.Steamid) != 17 {
+		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityURLResponse.Response.Steamid)
 	}
-	output, err := strconv.ParseInt(vanityUrlResponse.Response.Steamid, 10, 64)
+	output, err := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
 	if err != nil {
 		return SID64(0), errors.Wrap(err, "Failed to parse int from steamid received")
 	}
