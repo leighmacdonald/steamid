@@ -13,7 +13,6 @@
 //		steamid.ResolveVanity()
 //
 //
-
 package steamid
 
 import (
@@ -44,6 +43,7 @@ var (
 	reGroupURL    *regexp.Regexp
 	apiKey        string
 
+	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
 		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 )
@@ -127,11 +127,11 @@ func RandSID64() SID64 {
 }
 
 // SID64FromString will attempt to convert a Steam64 formatted string into a SID64
-func SID64FromString(steamId string) (SID64, error) {
-	if steamId == "" {
+func SID64FromString(steamID string) (SID64, error) {
+	if steamID == "" {
 		return 0, errors.New("Cannot convert empty string")
 	}
-	i, err := strconv.ParseInt(steamId, 10, 64)
+	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to parse integer")
 	}
@@ -143,11 +143,11 @@ func SID64FromString(steamId string) (SID64, error) {
 }
 
 // GIDFromString will attempt to convert a properly formatted string to a GID
-func GIDFromString(steamId string) (GID, error) {
-	if steamId == "" {
+func GIDFromString(steamID string) (GID, error) {
+	if steamID == "" {
 		return 0, errors.Errorf("Cannot convert empty string")
 	}
-	i, err := strconv.ParseInt(steamId, 10, 64)
+	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to parse integer from string")
 	}
@@ -314,7 +314,7 @@ func SID3ToSID64(steam3 SID3) SID64 {
 	return SID32ToSID64(SID32(steam32))
 }
 
-// SID3ToSID64 converts a given SID3 to a SID64.
+// SID3ToSID32 converts a given SID3 to a SID64.
 // eg. [U:1:172346362] -> 172346362
 //
 // 0 is returned if the process was unsuccessful.
