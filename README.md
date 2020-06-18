@@ -27,7 +27,7 @@ It supports all formats of steamid:
 - Steam32 `172346362`
 - Steam64 `76561198132612090`
     
-It also supports resolving vanity urls or names like: 
+With an API key set, It also supports resolving vanity urls or names like: 
 
 - https://steamcommunity.com/id/SQUIRRELLY
 - SQUIRRELLY
