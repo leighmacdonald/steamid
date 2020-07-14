@@ -34,8 +34,8 @@ edicts  : 1717 used of 2048 max
 	ids := SIDSFromStatus(s)
 	require.NotNil(t, ids)
 	require.Equal(t, len(ids), 11)
-
-	st, err := ParseStatus(s, true)
+	var st Status
+	err := ParseStatus(&st, s, true)
 	require.NoError(t, err)
 	require.Equal(t, "Uncletopia | US West 2", st.ServerName)
 	require.Equal(t, 32, st.PlayersMax)

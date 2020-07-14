@@ -363,8 +363,7 @@ func SID3ToSID32(steam3 SID3) SID32 {
 // ParseStatus will parse a status command output into a struct
 // If full is true, it will also parse the address/port of the player.
 // This only works for status commands via RCON/CLI
-func ParseStatus(status string, full bool) (Status, error) {
-	var s Status
+func ParseStatus(s *Status, status string, full bool) error {
 	for _, line := range strings.Split(status, "\n") {
 		parts := strings.SplitN(line, ": ", 2)
 		if len(parts) == 2 {
@@ -381,18 +380,18 @@ func ParseStatus(status string, full bool) (Status, error) {
 				ps := strings.Split(strings.ReplaceAll(parts[1], "(", ""), " ")
 				m, err := strconv.ParseUint(ps[4], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				s.PlayersMax = int(m)
 			case "edicts":
 				ed := strings.Split(parts[1], " ")
 				l, err := strconv.ParseUint(ed[0], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				m, err := strconv.ParseUint(ed[3], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				s.Edicts = []int{int(l), int(m)}
 			}
@@ -407,15 +406,15 @@ func ParseStatus(status string, full bool) (Status, error) {
 			if (!full && len(m) == 8) || (full && len(m) == 10) {
 				userID, err := strconv.ParseUint(m[1], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				ping, err := strconv.ParseUint(m[5], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				loss, err := strconv.ParseUint(m[6], 10, 64)
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				tp := strings.Split(m[4], ":")
 				for i, j := 0, len(tp)-1; i < j; i, j = i+1, j-1 {
@@ -425,13 +424,13 @@ func ParseStatus(status string, full bool) (Status, error) {
 				for i, vStr := range tp {
 					v, err := strconv.ParseUint(vStr, 10, 64)
 					if err != nil {
-						return Status{}, err
+						return err
 					}
 					totalSec += int(v) * []int{1, 60, 3600}[i]
 				}
 				dur, err := time.ParseDuration(fmt.Sprintf("%ds", totalSec))
 				if err != nil {
-					return Status{}, err
+					return err
 				}
 				p := Player{
 					UserID:        int(userID),
@@ -445,7 +444,7 @@ func ParseStatus(status string, full bool) (Status, error) {
 				if full {
 					port, err := strconv.ParseUint(m[9], 10, 64)
 					if err != nil {
-						return Status{}, err
+						return err
 					}
 					p.IP = net.ParseIP(m[8])
 					p.Port = int(port)
@@ -455,7 +454,7 @@ func ParseStatus(status string, full bool) (Status, error) {
 		}
 	}
 	s.PlayersCount = len(s.Players)
-	return s, nil
+	return nil
 }
 
 // SIDSFromStatus will parse the output of the console command `status` and return a
