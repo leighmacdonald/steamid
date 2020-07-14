@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,11 +38,13 @@ const (
 )
 
 var (
-	httpClient    *http.Client
-	reStatusID    *regexp.Regexp
-	reGroupIDTags *regexp.Regexp
-	reGroupURL    *regexp.Regexp
-	apiKey        string
+	httpClient         *http.Client
+	reStatusID         *regexp.Regexp
+	reGroupIDTags      *regexp.Regexp
+	reGroupURL         *regexp.Regexp
+	reStatusPlayerFull *regexp.Regexp
+	reStatusPlayer     *regexp.Regexp
+	apiKey             string
 
 	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
@@ -108,6 +111,29 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 	}
 	*t = v
 	return nil
+}
+
+type Status struct {
+	PlayersCount int
+	PlayersMax   int
+	ServerName   string
+	Version      string
+	Edicts       []int
+	Tags         []string
+	Map          string
+	Players      []Player
+}
+
+type Player struct {
+	UserID        int
+	Name          string
+	SID           SID64
+	ConnectedTime time.Duration
+	Ping          int
+	Loss          int
+	State         string
+	IP            net.IP
+	Port          int
 }
 
 // SetKey will set the package global steam webapi key used for some requests
@@ -332,6 +358,104 @@ func SID3ToSID32(steam3 SID3) SID32 {
 		return SID32(0)
 	}
 	return SID32(steam32)
+}
+
+// ParseStatus will parse a status command output into a struct
+// If full is true, it will also parse the address/port of the player.
+// This only works for status commands via RCON/CLI
+func ParseStatus(status string, full bool) (Status, error) {
+	var s Status
+	for _, line := range strings.Split(status, "\n") {
+		parts := strings.SplitN(line, ": ", 2)
+		if len(parts) == 2 {
+			switch strings.TrimRight(parts[0], " ") {
+			case "hostname":
+				s.ServerName = parts[1]
+			case "version":
+				s.Version = parts[1]
+			case "map":
+				s.Map = strings.Split(parts[1], " ")[0]
+			case "tags":
+				s.Tags = strings.Split(parts[1], ",")
+			case "players":
+				ps := strings.Split(strings.ReplaceAll(parts[1], "(", ""), " ")
+				m, err := strconv.ParseUint(ps[4], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				s.PlayersMax = int(m)
+			case "edicts":
+				ed := strings.Split(parts[1], " ")
+				l, err := strconv.ParseUint(ed[0], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				m, err := strconv.ParseUint(ed[3], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				s.Edicts = []int{int(l), int(m)}
+			}
+			continue
+		} else {
+			var m []string
+			if full {
+				m = reStatusPlayerFull.FindStringSubmatch(line)
+			} else {
+				m = reStatusPlayer.FindStringSubmatch(line)
+			}
+			if (!full && len(m) == 8) || (full && len(m) == 10) {
+				userID, err := strconv.ParseUint(m[1], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				ping, err := strconv.ParseUint(m[5], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				loss, err := strconv.ParseUint(m[6], 10, 64)
+				if err != nil {
+					return Status{}, err
+				}
+				tp := strings.Split(m[4], ":")
+				for i, j := 0, len(tp)-1; i < j; i, j = i+1, j-1 {
+					tp[i], tp[j] = tp[j], tp[i]
+				}
+				var totalSec int
+				for i, vStr := range tp {
+					v, err := strconv.ParseUint(vStr, 10, 64)
+					if err != nil {
+						return Status{}, err
+					}
+					totalSec += int(v) * []int{1, 60, 3600}[i]
+				}
+				dur, err := time.ParseDuration(fmt.Sprintf("%ds", totalSec))
+				if err != nil {
+					return Status{}, err
+				}
+				p := Player{
+					UserID:        int(userID),
+					Name:          m[2],
+					SID:           SID3ToSID64(SID3(m[3])),
+					ConnectedTime: dur,
+					Ping:          int(ping),
+					Loss:          int(loss),
+					State:         m[7],
+				}
+				if full {
+					port, err := strconv.ParseUint(m[9], 10, 64)
+					if err != nil {
+						return Status{}, err
+					}
+					p.IP = net.ParseIP(m[8])
+					p.Port = int(port)
+				}
+				s.Players = append(s.Players, p)
+			}
+		}
+	}
+	s.PlayersCount = len(s.Players)
+	return s, nil
 }
 
 // SIDSFromStatus will parse the output of the console command `status` and return a
@@ -581,4 +705,6 @@ func init() {
 	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
 	reStatusID = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
 	reGroupURL = regexp.MustCompile(`steamcommunity.com/groups/(\S+)/?`)
+	reStatusPlayer = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
+	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
 }
