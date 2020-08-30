@@ -3,13 +3,13 @@ GO_FLAGS = -ldflags "-X 'github.com/leighmacdonald/steamid/steamid.BuildVersion=
 all: lin win mac
 
 lin:
-	@GOOS=linux GOARCH=amd64 go build $(GO_FLAGS) -o build/linux64/rcon main.go
+	@GOOS=linux GOARCH=amd64 go build $(GO_FLAGS) -o build/linux64/steamid main.go
 
 win:
-	@GOOS=windows GOARCH=amd64 go build $(GO_FLAGS) -o build/win64/rcon.exe main.go
+	@GOOS=windows GOARCH=amd64 go build $(GO_FLAGS) -o build/win64/steamid.exe main.go
 
 mac:
-	@GOOS=darwin GOARCH=amd64 go build $(GO_FLAGS) -o build/macos64/rcon main.go
+	@GOOS=darwin GOARCH=amd64 go build $(GO_FLAGS) -o build/macos64/steamid main.go
 
 dist:
 	@zip -j rcon-`git describe --abbrev=0`-win64.zip build/win64/rcon.exe LICENSE
