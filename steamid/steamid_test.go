@@ -2,6 +2,7 @@ package steamid
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -46,6 +47,21 @@ edicts  : 731 used of 2048 max
 	assert.Equal(t, len(ids), 24)
 }
 
+func TestParseString(t *testing.T) {
+	testBody := `# userid name                uniqueid            connected ping loss state
+#      2 "WolfXine"          [U:1:166779318]     15:22       85    0 active
+#      3 "mdaniels5746"      [U:1:361821288]     15:22       87    0 active
+#     28 "KRGonzales"        [U:1:875620767]     00:29       76   10 active
+#      4 "juan.martinez2009" [U:1:79002518]      15:22       72    0 active
+[U:1:172346362]STEAM_0:0:86173182[U:1:172346342]
+STEAM_0:0:86173181
+76561198132612090
+76561198084134025
+`
+	ids := ParseString(testBody)
+	require.Len(t, ids, 8) // 2 duplicated
+}
+
 func TestConversions(t *testing.T) {
 	assert.Equal(t, SID3ToSID32("[U:1:172346362]"), SID32(172346362))
 	assert.Equal(t, SID3ToSID64("[U:1:172346362]"), SID64(76561198132612090))
@@ -55,7 +71,7 @@ func TestConversions(t *testing.T) {
 	assert.Equal(t, SID32ToSteamID(172346362), SID("STEAM_0:0:86173181"))
 	assert.Equal(t, SID64ToSID3(76561198132612090), SID3("[U:1:172346362]"))
 	assert.Equal(t, SID64ToSID32(76561198132612090), SID32(172346362))
-	assert.Equal(t, SID64ToSteamID(76561198132612090), SID("STEAM_0:0:86173181"))
+	assert.Equal(t, SID64ToSID(76561198132612090), SID("STEAM_0:0:86173181"))
 	assert.Equal(t, SIDToSID3("STEAM_0:0:86173181"), SID3("[U:1:172346362]"))
 	assert.Equal(t, SIDToSID32("STEAM_0:0:86173181"), SID32(172346362))
 	assert.Equal(t, SIDToSID64("STEAM_0:0:86173181"), SID64(76561198132612090))

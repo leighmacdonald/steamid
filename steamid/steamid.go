@@ -28,7 +28,7 @@ var (
 )
 
 type AppID int64
-type SID string   // STEAM_0:0:86173181
+type SID string   // STEAM_0:0:86173181 This is also known as "Steam2"
 type SID64 uint64 // 76561198132612090
 type SID32 uint32 // 172346362
 type SID3 string  // [U:1:172346362]
@@ -139,11 +139,11 @@ func SIDToSID3(steamID SID) SID3 {
 	return SID3("[U:1:" + strconv.FormatUint(steamLastPart*2, 10) + "]")
 }
 
-// SID64ToSteamID converts a given SID64 to a SteamID.
+// SID64ToSID converts a given SID64 to a SteamID.
 // eg. 76561198132612090 -> STEAM_0:0:86173181
 //
 // An empty SteamID (string) is returned if the process was unsuccessful.
-func SID64ToSteamID(steam64 SID64) SID {
+func SID64ToSID(steam64 SID64) SID {
 	steamID := new(big.Int).SetInt64(int64(steam64))
 	magic, _ := new(big.Int).SetString("76561197960265728", 10)
 	steamID = steamID.Sub(steamID, magic)
@@ -174,9 +174,9 @@ func SID64ToSID32(steam64 SID64) SID32 {
 //
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SID64ToSID3(steam64 SID64) SID3 {
-	steamID := SID64ToSteamID(steam64)
+	steamID := SID64ToSID(steam64)
 	if steamID == SID(0) {
-		return SID3("")
+		return ""
 	}
 	return SIDToSID3(steamID)
 }
@@ -186,7 +186,7 @@ func SID64ToSID3(steam64 SID64) SID3 {
 //
 // An empty SteamID (string) is returned if the process was unsuccessful.
 func SID32ToSteamID(steam32 SID32) SID {
-	return SID64ToSteamID(SID32ToSID64(steam32))
+	return SID64ToSID(SID32ToSID64(steam32))
 }
 
 // SID32ToSID64 converts a given SID32 to a SID64.
@@ -486,6 +486,34 @@ func StringToSID64(s string) SID64 {
 		}
 	}
 	return 0
+}
+
+func ParseString(body string) []SID64 {
+	freSID := regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
+	freSID64 := regexp.MustCompile(`7656119\d{10}`)
+	freSID3 := regexp.MustCompile(`\[U:1:\d+]`)
+
+	// Store only unique entries
+	found := make(map[SID64]bool)
+	m0 := freSID.FindAllStringSubmatch(body, -1)
+	m1 := freSID64.FindAllStringSubmatch(body, -1)
+	m2 := freSID3.FindAllStringSubmatch(body, -1)
+	for _, i := range m0 {
+		found[SIDToSID64(SID(i[0]))] = true
+	}
+
+	for _, i := range m1 {
+		found[SID64FromString(i[0])] = true
+	}
+
+	for _, i := range m2 {
+		found[SID3ToSID64(SID3(i[0]))] = true
+	}
+	var ids []SID64
+	for k := range found {
+		ids = append(ids, k)
+	}
+	return ids
 }
 
 func init() {
