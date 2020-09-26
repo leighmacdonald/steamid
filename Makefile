@@ -1,4 +1,4 @@
-GO_FLAGS = -ldflags "-X 'github.com/leighmacdonald/steamid/steamid.BuildVersion=`git describe --abbrev=0`'"
+GO_FLAGS = -ldflags "-X 'github.com/leighmacdonald/steamid/v2/steamid.BuildVersion=`git describe --abbrev=0`'"
 
 all: lin win mac
 
