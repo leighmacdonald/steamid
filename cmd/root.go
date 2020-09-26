@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/leighmacdonald/steamid/steamid"
 	"github.com/spf13/cobra"
 	"os"
 
@@ -20,6 +21,7 @@ var rootCmd = &cobra.Command{
 	Short: "A library and CLI app to convert between steam id formats",
 	Long:  `A library and CLI app to convert between steam id formats`,
 	//	Run: func(cmd *cobra.Command, args []string) { },
+	Version: steamid.BuildVersion,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

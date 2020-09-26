@@ -90,11 +90,16 @@ import (
 )
     
 func main() {
+
+
+    // Parsing vanity profile urls
     steamid.SetKey("YOUR_STEAM_WEBAPI_KEY") // Optional, for resolving vanity names support
     resolvedSID64, err := steamid.ResolveVanity(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
     if err != nil {
         fmt.Printf("Could not resolve: %v", err)
     }
+    fmt.Printf("Resolved to: %d\n", resolvedSID64)
+
     // Normal conversions like these do not require a key to be set
     sid64, err := steamid.StringToSID64("76561197961279983")
     if err != nil {
@@ -106,9 +111,22 @@ func main() {
     fmt.Printf("Steam64: %d\n", sid64)
     fmt.Printf("Steam32: %d\n", steamid.SID64ToSID32(sid64))
     fmt.Printf("Steam3: %s\n", steamid.SID64ToSID3(sid64))
+    fmt.Printf("Steam: %s\n", steamid.SID64ToSID(sid64))
 }
 
 ```
+
+## Extra Functions
+
+The extra package also includes some helpful functions that are used to fetch & parse common data formats related
+to steam ids. These are not directly related to steamid conversions, but are a common use case.
+
+- Retrieve the [GetPlayerSummaries](https://developer.valvesoftware.com/wiki/Steam_Web_API#GetPlayerSummaries_.28v0002.29) 
+Steam WebAPI into a `extra.[]PlayerSummary` structure: `PlayerSummaries(ctx context.Context, steamIDs []steamid.SID64) ([]PlayerSummary, error)`
+- Parsing all status console command output: `extra.ParseStatus(status string, full bool) (Status, error)`
+- Parse just the status console steamids: `extra.SIDSFromStatus(text string) []steamid.SID64` 
+- Parse all steamids from a input `io.Reader` into a `io.Writer` using a custom format. This is the 
+programmatic way to do what the cli `parse` command does: `extra.ParseReader(input io.Reader, output io.Writer, format string, idType string) error`
 
 ## Docs
 

@@ -18,12 +18,10 @@ package steamid
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
 	"io/ioutil"
 	"math/big"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -40,11 +38,8 @@ const (
 
 var (
 	httpClient         *http.Client
-	reStatusID         *regexp.Regexp
 	reGroupIDTags      *regexp.Regexp
 	reGroupURL         *regexp.Regexp
-	reStatusPlayerFull *regexp.Regexp
-	reStatusPlayer     *regexp.Regexp
 	apiKey             string
 	BuildVersion       = "master"
 
@@ -115,28 +110,6 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Status struct {
-	PlayersCount int
-	PlayersMax   int
-	ServerName   string
-	Version      string
-	Edicts       []int
-	Tags         []string
-	Map          string
-	Players      []Player
-}
-
-type Player struct {
-	UserID        int
-	Name          string
-	SID           SID64
-	ConnectedTime time.Duration
-	Ping          int
-	Loss          int
-	State         string
-	IP            net.IP
-	Port          int
-}
 
 // SetKey will set the package global steam webapi key used for some requests
 // Basic id conversion usage does not require this to be set.
@@ -144,7 +117,19 @@ type Player struct {
 // You can alternatively set the key with the environment variable `STEAM_TOKEN={YOUR_API_KEY`
 // To get a key see: https://steamcommunity.com/dev/apikey
 func SetKey(key string) {
+	if len(key) != 32 && len(key) != 0 {
+		log.Warnf("Tried to set invalid key, must be 32 chars or 0 to remove it")
+		return
+	}
 	apiKey = key
+}
+
+func GetKey() string {
+	return apiKey
+}
+
+func GetHTTP() *http.Client {
+	return httpClient
 }
 
 var idGen uint64 = 76561197960265728
@@ -269,11 +254,11 @@ func SID64ToSID3(steam64 SID64) SID3 {
 	return SIDToSID3(steamID)
 }
 
-// SID32ToSteamID converts a given SID32 to a SteamID.
+// SID32ToSID converts a given SID32 to a SteamID.
 // eg. 172346362 -> STEAM_0:0:86173181
 //
 // An empty SteamID (string) is returned if the process was unsuccessful.
-func SID32ToSteamID(steam32 SID32) SID {
+func SID32ToSID(steam32 SID32) SID {
 	return SID64ToSID(SID32ToSID64(steam32))
 }
 
@@ -294,7 +279,7 @@ func SID32ToSID64(steam32 SID32) SID64 {
 //
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SID32ToSID3(steam32 SID32) SID3 {
-	steamID := SID32ToSteamID(steam32)
+	steamID := SID32ToSID(steam32)
 	if steamID == SID(0) {
 		return ""
 	}
@@ -318,7 +303,7 @@ func SID3ToSID(steam3 SID3) SID {
 	if err != nil {
 		return ""
 	}
-	return SID32ToSteamID(SID32(steam32))
+	return SID32ToSID(SID32(steam32))
 }
 
 // SID3ToSID64 converts a given SID3 to a SID64.
@@ -362,187 +347,6 @@ func SID3ToSID32(steam3 SID3) SID32 {
 	return SID32(steam32)
 }
 
-// ParseStatus will parse a status command output into a struct
-// If full is true, it will also parse the address/port of the player.
-// This only works for status commands via RCON/CLI
-func ParseStatus(status string, full bool) (Status, error) {
-	var s Status
-	for _, line := range strings.Split(status, "\n") {
-		parts := strings.SplitN(line, ": ", 2)
-		if len(parts) == 2 {
-			switch strings.TrimRight(parts[0], " ") {
-			case "hostname":
-				s.ServerName = parts[1]
-			case "version":
-				s.Version = parts[1]
-			case "map":
-				s.Map = strings.Split(parts[1], " ")[0]
-			case "tags":
-				s.Tags = strings.Split(parts[1], ",")
-			case "players":
-				ps := strings.Split(strings.ReplaceAll(parts[1], "(", ""), " ")
-				m, err := strconv.ParseUint(ps[4], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				s.PlayersMax = int(m)
-			case "edicts":
-				ed := strings.Split(parts[1], " ")
-				l, err := strconv.ParseUint(ed[0], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				m, err := strconv.ParseUint(ed[3], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				s.Edicts = []int{int(l), int(m)}
-			}
-			continue
-		} else {
-			var m []string
-			if full {
-				m = reStatusPlayerFull.FindStringSubmatch(line)
-			} else {
-				m = reStatusPlayer.FindStringSubmatch(line)
-			}
-			if (!full && len(m) == 8) || (full && len(m) == 10) {
-				userID, err := strconv.ParseUint(m[1], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				ping, err := strconv.ParseUint(m[5], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				loss, err := strconv.ParseUint(m[6], 10, 64)
-				if err != nil {
-					return Status{}, err
-				}
-				tp := strings.Split(m[4], ":")
-				for i, j := 0, len(tp)-1; i < j; i, j = i+1, j-1 {
-					tp[i], tp[j] = tp[j], tp[i]
-				}
-				var totalSec int
-				for i, vStr := range tp {
-					v, err := strconv.ParseUint(vStr, 10, 64)
-					if err != nil {
-						return Status{}, err
-					}
-					totalSec += int(v) * []int{1, 60, 3600}[i]
-				}
-				dur, err := time.ParseDuration(fmt.Sprintf("%ds", totalSec))
-				if err != nil {
-					return Status{}, err
-				}
-				p := Player{
-					UserID:        int(userID),
-					Name:          m[2],
-					SID:           SID3ToSID64(SID3(m[3])),
-					ConnectedTime: dur,
-					Ping:          int(ping),
-					Loss:          int(loss),
-					State:         m[7],
-				}
-				if full {
-					port, err := strconv.ParseUint(m[9], 10, 64)
-					if err != nil {
-						return Status{}, err
-					}
-					p.IP = net.ParseIP(m[8])
-					p.Port = int(port)
-				}
-				s.Players = append(s.Players, p)
-			}
-		}
-	}
-	s.PlayersCount = len(s.Players)
-	return s, nil
-}
-
-// SIDSFromStatus will parse the output of the console command `status` and return a
-// set of SID64s representing all the players
-func SIDSFromStatus(text string) []SID64 {
-	var ids []SID64
-	found := reStatusID.FindAllString(text, -1)
-	if found == nil {
-		return nil
-	}
-	for _, strID := range found {
-		ids = append(ids, SID3ToSID64(SID3(strID)))
-	}
-	return ids
-}
-
-// PlayerSummary is the unaltered player summary from the steam official API
-type PlayerSummary struct {
-	Steamid                  string `json:"steamid"`
-	CommunityVisibilityState int    `json:"communityvisibilitystate"`
-	ProfileState             int    `json:"profilestate"`
-	PersonaName              string `json:"personaname"`
-	ProfileURL               string `json:"profileurl"`
-	Avatar                   string `json:"avatar"`
-	AvatarMedium             string `json:"avatarmedium"`
-	AvatarFull               string `json:"avatarfull"`
-	AvatarHash               string `json:"avatarhash"`
-	PersonaState             int    `json:"personastate"`
-	RealName                 string `json:"realname"`
-	PrimaryClanID            string `json:"primaryclanid"`
-	TimeCreated              int    `json:"timecreated"`
-	PersonastateFlags        int    `json:"personastateflags"`
-	LocCountryCode           string `json:"loccountrycode"`
-	LocStateCode             string `json:"locstatecode"`
-	LocCityID                int    `json:"loccityid"`
-}
-
-type playerSummariesResp struct {
-	Response struct {
-		Players []PlayerSummary `json:"players"`
-	} `json:"response"`
-}
-
-// PlayerSummaries will call GetPlayerSummaries on the valve WebAPI returning the players
-// portion of the response as []PlayerSummary
-//
-// It will only accept up to 100 steamids in a single call
-func PlayerSummaries(ctx context.Context, steamIDs []SID64) ([]PlayerSummary, error) {
-	var ps []PlayerSummary
-	if apiKey == "" {
-		return ps, ErrNoAPIKey
-	}
-	const baseURL = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=%s&steamids=%s"
-	if len(steamIDs) == 0 {
-		return ps, nil
-	}
-	if len(steamIDs) > 100 {
-		return ps, errors.New("Too many steam ids, max 100")
-	}
-	var idStrings []string
-	for _, id := range steamIDs {
-		idStrings = append(idStrings, fmt.Sprintf("%d", id))
-	}
-	u := fmt.Sprintf(baseURL, apiKey, strings.Join(idStrings, ","))
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
-	if err != nil {
-		return ps, errors.Wrap(err, "Failed to create new request")
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return ps, errors.Wrap(err, "Failed to perform http request")
-	}
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ps, errors.Wrap(err, "Failed to read response body")
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-	var r playerSummariesResp
-	if err := json.Unmarshal(b, &r); err != nil {
-		return ps, errors.Wrap(err, "Failed to decode JSON response")
-	}
-	return r.Response.Players, nil
-}
 
 // ResolveGID tries to resolve the GroupID from a group custom URL.
 // NOTE This may be prone to error due to not being a real api endpoint
@@ -738,8 +542,5 @@ func init() {
 		Timeout: time.Second * 10,
 	}
 	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
-	reStatusID = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
 	reGroupURL = regexp.MustCompile(`steamcommunity.com/groups/(\S+)/?`)
-	reStatusPlayer = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
-	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
 }
