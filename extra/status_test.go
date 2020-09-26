@@ -2,7 +2,7 @@ package extra
 
 import (
 	"context"
-	"github.com/leighmacdonald/steamid/steamid"
+	"github.com/leighmacdonald/steamid/v2/steamid"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"

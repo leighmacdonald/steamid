@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/leighmacdonald/steamid/steamid"
+	"github.com/leighmacdonald/steamid/v2/steamid"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"

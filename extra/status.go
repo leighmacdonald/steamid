@@ -2,7 +2,7 @@ package extra
 
 import (
 	"fmt"
-	"github.com/leighmacdonald/steamid/steamid"
+	"github.com/leighmacdonald/steamid/v2/steamid"
 	"net"
 	"regexp"
 	"strconv"

@@ -5,7 +5,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/leighmacdonald/steamid/steamid"
+	"github.com/leighmacdonald/steamid/v2/steamid"
 	"github.com/spf13/cobra"
 	"os"
 

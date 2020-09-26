@@ -1,4 +1,4 @@
-module github.com/leighmacdonald/steamid
+module github.com/leighmacdonald/steamid/v2
 
 go 1.13
 

@@ -3,7 +3,7 @@ package extra
 import (
 	"bufio"
 	"fmt"
-	"github.com/leighmacdonald/steamid/steamid"
+	"github.com/leighmacdonald/steamid/v2/steamid"
 	"github.com/pkg/errors"
 	"io"
 	"strconv"

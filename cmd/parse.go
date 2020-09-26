@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/leighmacdonald/steamid/extra"
+	"github.com/leighmacdonald/steamid/v2/extra"
 	"github.com/spf13/cobra"
 	"io"
 	"log"
