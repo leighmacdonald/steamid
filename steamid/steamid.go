@@ -37,11 +37,11 @@ const (
 )
 
 var (
-	httpClient         *http.Client
-	reGroupIDTags      *regexp.Regexp
-	reGroupURL         *regexp.Regexp
-	apiKey             string
-	BuildVersion       = "master"
+	httpClient    *http.Client
+	reGroupIDTags *regexp.Regexp
+	reGroupURL    *regexp.Regexp
+	apiKey        string
+	BuildVersion  = "master"
 
 	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
@@ -109,7 +109,6 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 	*t = v
 	return nil
 }
-
 
 // SetKey will set the package global steam webapi key used for some requests
 // Basic id conversion usage does not require this to be set.
@@ -248,7 +247,7 @@ func SID64ToSID32(steam64 SID64) SID32 {
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SID64ToSID3(steam64 SID64) SID3 {
 	steamID := SID64ToSID(steam64)
-	if steamID == SID(0) {
+	if steamID == SID64ToSID(0) {
 		return ""
 	}
 	return SIDToSID3(steamID)
@@ -280,7 +279,7 @@ func SID32ToSID64(steam32 SID32) SID64 {
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SID32ToSID3(steam32 SID32) SID3 {
 	steamID := SID32ToSID(steam32)
-	if steamID == SID(0) {
+	if steamID == SID32ToSID(0) {
 		return ""
 	}
 	return SIDToSID3(steamID)
@@ -346,7 +345,6 @@ func SID3ToSID32(steam3 SID3) SID32 {
 	}
 	return SID32(steam32)
 }
-
 
 // ResolveGID tries to resolve the GroupID from a group custom URL.
 // NOTE This may be prone to error due to not being a real api endpoint
