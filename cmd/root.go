@@ -1,6 +1,4 @@
-/*
-Copyright © 2020 Leigh MacDonald <leigh.macdonald@gmail.com>
-*/
+// Package cmd implements the CLI interface for steamid
 package cmd
 
 import (

@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 RUN make lin
 
-FROM alpine:latest
+FROM alpine:3.13.1
 LABEL maintainer="Leigh MacDonald <leigh.macdonald@gmail.com>"
 WORKDIR /app
 COPY --from=backend /build/build/linux64/steamid .

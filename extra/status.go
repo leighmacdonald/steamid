@@ -22,6 +22,7 @@ func init() {
 	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
 }
 
+// Status represents the data from the `status` rcon/console command
 type Status struct {
 	PlayersCount int
 	PlayersMax   int
@@ -33,6 +34,7 @@ type Status struct {
 	Players      []Player
 }
 
+// Player represents all the available data for a player in a `status` output table
 type Player struct {
 	UserID        int
 	Name          string

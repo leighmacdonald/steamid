@@ -41,7 +41,9 @@ var (
 	reGroupIDTags *regexp.Regexp
 	reGroupURL    *regexp.Regexp
 	apiKey        string
-	BuildVersion  = "master"
+
+	// BuildVersion is replaced at compile time with the current tag or revision
+	BuildVersion = "master"
 
 	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
@@ -123,10 +125,12 @@ func SetKey(key string) {
 	apiKey = key
 }
 
+// GetKey returns the steam web api key, if set, otherwise empty string
 func GetKey() string {
 	return apiKey
 }
 
+// GetHTTP returns the currently configured http.Client
 func GetHTTP() *http.Client {
 	return httpClient
 }
@@ -502,6 +506,7 @@ func StringToSID64(s string) (SID64, error) {
 	return 0, errors.Errorf("String provided did not match any know steam formats: %s", s)
 }
 
+// ParseString attempts to parse any strings of any known format within the body to a common SID64 format
 func ParseString(body string) []SID64 {
 	freSID := regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
 	freSID64 := regexp.MustCompile(`7656119\d{10}`)
