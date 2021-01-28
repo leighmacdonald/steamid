@@ -362,13 +362,13 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	if err != nil {
 		return GID(0), errors.Wrapf(err, "Failed to fetch GID from host")
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return GID(0), errors.Wrapf(err, "Failed to read response body")
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	groupIDTags := reGroupIDTags.FindSubmatch(content)
 	if len(groupIDTags) >= 2 {
 		groupID, err := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
@@ -474,7 +474,8 @@ func StringToSID64(s string) (SID64, error) {
 			}
 			return SID64(i64), nil
 		}
-	} else if len(s) == 9 {
+	}
+	if len(s) == 9 {
 		i32, err := strconv.ParseUint(s, 10, 32)
 		if err == nil {
 			v := SID32ToSID64(SID32(i32))
@@ -483,13 +484,15 @@ func StringToSID64(s string) (SID64, error) {
 			}
 			return v, nil
 		}
-	} else if strings.HasPrefix(us, "[U:") {
+	}
+	if strings.HasPrefix(us, "[U:") {
 		v := SID3ToSID64(SID3(us))
 		if !v.Valid() {
 			return v, errors.Errorf("String provided is not a valid Steam3 format: %s", s)
 		}
 		return v, nil
-	} else if strings.HasPrefix(us, "STEAM_") {
+	}
+	if strings.HasPrefix(us, "STEAM_") {
 		v := SIDToSID64(SID(us))
 		if !v.Valid() {
 			return v, errors.Errorf("String provided is not a valid Steam format: %s", s)
