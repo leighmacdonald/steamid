@@ -23,3 +23,5 @@ jobs:
 
     - name: Test
       run: make test
+      env:
+        STEAM_TOKEN: ${{ secrets.STEAM_TOKEN }}
