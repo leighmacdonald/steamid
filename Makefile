@@ -32,3 +32,6 @@ run:
 
 test:
 	GOTRACEBACK=all GODEBUG=netdns=go $(GO_TEST) -v ./...
+
+lint:
+	@golangci-lint run

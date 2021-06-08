@@ -18,8 +18,8 @@ package steamid
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -117,12 +117,12 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 //
 // You can alternatively set the key with the environment variable `STEAM_TOKEN={YOUR_API_KEY`
 // To get a key see: https://steamcommunity.com/dev/apikey
-func SetKey(key string) {
+func SetKey(key string) error {
 	if len(key) != 32 && len(key) != 0 {
-		log.Warnf("Tried to set invalid key, must be 32 chars or 0 to remove it")
-		return
+		return errors.New("Tried to set invalid key, must be 32 chars or 0 to remove it")
 	}
 	apiKey = key
+	return nil
 }
 
 // GetKey returns the steam web api key, if set, otherwise empty string
@@ -422,8 +422,8 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if len(vanityURLResponse.Response.Steamid) != 17 {
 		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityURLResponse.Response.Steamid)
 	}
-	output, err := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
-	if err != nil {
+	output, errI := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
+	if errI != nil {
 		return SID64(0), errors.Wrap(err, "Failed to parse int from steamid received")
 	}
 	return SID64(output), nil
@@ -523,8 +523,7 @@ func ParseString(body string) []SID64 {
 
 	for _, i := range m1 {
 		s, err := SID64FromString(i[0])
-		if err != nil {
-			log.Warnf("Failed to parse string to sid64: %s", i[0])
+		if err != nil || !s.Valid() {
 			continue
 		}
 		found[s] = true
@@ -542,7 +541,9 @@ func ParseString(body string) []SID64 {
 
 func init() {
 	if t, found := os.LookupEnv("STEAM_TOKEN"); found && t != "" {
-		SetKey(t)
+		if err := SetKey(t); err != nil {
+			fmt.Printf("(steamid) STEAM_TOKEN invalid: %v\n", err)
+		}
 	}
 	httpClient = &http.Client{
 		Timeout: time.Second * 10,

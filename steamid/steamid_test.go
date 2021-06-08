@@ -2,6 +2,7 @@ package steamid
 
 import (
 	"context"
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -65,7 +66,6 @@ func TestConversions(t *testing.T) {
 	require.Equal(t, SIDToSID64("STEAM_0:0:86173181"), SID64(76561198132612090))
 }
 
-
 func TestResolveGID(t *testing.T) {
 	gid1, err := ResolveGID(context.Background(), "SQTreeHouse")
 	require.NoError(t, err, "Failed to fetch gid")
@@ -85,24 +85,24 @@ func TestResolveSID(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sid1, SID64(76561197961279983))
 
-	sid2, err := ResolveSID64(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
-	require.Error(t, err)
+	sid2, err2 := ResolveSID64(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
+	require.Error(t, err2)
 	require.False(t, sid2.Valid())
 
-	sid3, err := ResolveSID64(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
-	require.NoError(t, err)
+	sid3, err3 := ResolveSID64(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
+	require.NoError(t, err3)
 	require.Equal(t, sid3, SID64(76561197961279983))
 
-	sid4, err := ResolveSID64(context.Background(), "[U:1:1014255]")
-	require.NoError(t, err)
+	sid4, err4 := ResolveSID64(context.Background(), "[U:1:1014255]")
+	require.NoError(t, err4)
 	require.Equal(t, sid4, SID64(76561197961279983))
 
-	sid5, err := ResolveSID64(context.Background(), "STEAM_0:1:507127")
+	sid5, err5 := ResolveSID64(context.Background(), "STEAM_0:1:507127")
 	require.Equal(t, sid5, SID64(76561197961279983))
-	require.NoError(t, err)
+	require.NoError(t, err5)
 
-	sid6, err := ResolveSID64(context.Background(), "")
-	require.Error(t, err)
+	sid6, err6 := ResolveSID64(context.Background(), "")
+	require.Error(t, err6)
 	require.False(t, sid6.Valid())
 
 }
@@ -110,7 +110,9 @@ func TestResolveSID(t *testing.T) {
 func TestMain(m *testing.M) {
 	key, found := os.LookupEnv("STEAM_TOKEN")
 	if found {
-		SetKey(key)
+		if e := SetKey(key); e != nil {
+			fmt.Printf(e.Error())
+		}
 	}
 	os.Exit(m.Run())
 }

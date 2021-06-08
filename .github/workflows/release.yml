@@ -21,7 +21,8 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           goos: ${{ matrix.goos }}
           goarch: ${{ matrix.goarch }}
-          goversion: "https://dl.google.com/go/go1.16.5.linux-amd64.tar.gz"
+          goversion: "1.16"
           project_path: "."
+          ldflags: "-X 'github.com/leighmacdonald/steamid/v2/steamid.BuildVersion=`git describe --abbrev=0`'"
           binary_name: "steamid"
           extra_files: LICENSE.md README.md
