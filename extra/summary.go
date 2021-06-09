@@ -1,3 +1,4 @@
+// Package extra provides some extra helper functionality to query the steam WebAPI
 package extra
 
 import (
