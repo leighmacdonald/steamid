@@ -1,3 +1,4 @@
+name: Build Release Binaries
 on:
   release:
     types: [created]

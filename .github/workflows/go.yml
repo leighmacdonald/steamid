@@ -13,6 +13,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v2.5.1
+
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
@@ -25,3 +28,6 @@ jobs:
       run: make test
       env:
         STEAM_TOKEN: ${{ secrets.STEAM_TOKEN }}
+
+    - name: Lint
+      run: make lint

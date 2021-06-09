@@ -26,11 +26,35 @@ supported ids, removing duplicates.
 
 Output steamid format can be specified with the `-t` flag. Defaults to steam64.
 
-The `--format` flag applies formatting to the output. The exaple below (and default), will append a newline
+The `--format` flag applies formatting to the output. The example below (and default), will append a newline
 to each steamid found. the `%s` is replaced with the steamid in the format specified.
 
-`steamid parse --input input.txt --format "%s\n" -t steam3 -h`
+    $ steamid parse --input ./test_data/log_sup_med_1.log --format "steamid: %s\n" -t steam3
+    steamid: [U:1:59956152]
+    steamid: [U:1:58024980]
+    steamid: [U:1:13379990]
+    steamid: [U:1:137497004]
+    steamid: [U:1:66374744]
+    steamid: [U:1:97609910]
+    ...
+    $
 
+Piping in via stdin:
+
+    $ cat ./test_data/log_sup_med_1.log | steamid parse -t steam
+    STEAM_0:0:42657528
+    STEAM_0:0:61488285
+    STEAM_0:0:63356089
+    STEAM_0:0:527631840
+    STEAM_0:0:4807701
+    STEAM_0:1:41808234
+
+Note that the results returned are in *no particular order*, so you should sort them
+if needed. eg:
+
+    $ steamid parse --input ./test_data/log_sup_med_1.log | sort
+
+Command help:
 
 ```
 Parse steam id's from an input file.
@@ -46,7 +70,6 @@ Flags:
   -i, --input string    Input text file to parse. Uses stdin if not specified.
   -o, --output string   Output results to a file.  Uses stdout if not specified.
   -t, --type string     Output format for steam ids found (steam64, steam, steam3) (default "steam64")
-
 
 ```
 
@@ -79,39 +102,42 @@ With an API key set, It also supports resolving vanity urls or names like:
 ## Usage
 
     $ go get git@github.com:leighmacdonald/steamid.git
-    
+
 ```go
 package main
 
 import (
-    "context"
-    "fmt"
-    "github.com/leighmacdonald/steamid"
+	"context"
+	"fmt"
+	"github.com/leighmacdonald/steamid/v2/steamid"
+	"os"
 )
-    
+
 func main() {
+	// Parsing vanity profile urls
+	// Optional, for resolving vanity names support
+	if err := steamid.SetKey("YOUR_STEAM_WEBAPI_KEY"); err != nil {
+		fmt.Printf("Invalid steamid: %v", err)
+		os.Exit(1)
+	}
+	resolvedSID64, err := steamid.ResolveVanity(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
+	if err != nil {
+		fmt.Printf("Could not resolve: %v", err)
+	}
+	fmt.Printf("Resolved to: %d\n", resolvedSID64)
 
-
-    // Parsing vanity profile urls
-    steamid.SetKey("YOUR_STEAM_WEBAPI_KEY") // Optional, for resolving vanity names support
-    resolvedSID64, err := steamid.ResolveVanity(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
-    if err != nil {
-        fmt.Printf("Could not resolve: %v", err)
-    }
-    fmt.Printf("Resolved to: %d\n", resolvedSID64)
-
-    // Normal conversions like these do not require a key to be set
-    sid64, err := steamid.StringToSID64("76561197961279983")
-    if err != nil {
-        fmt.Printf("Could not convert string: %v", err)
-    }
-    if sid64 != resolvedSID64 {
-        fmt.Printf("They dont match!")
-    }
-    fmt.Printf("Steam64: %d\n", sid64)
-    fmt.Printf("Steam32: %d\n", steamid.SID64ToSID32(sid64))
-    fmt.Printf("Steam3: %s\n", steamid.SID64ToSID3(sid64))
-    fmt.Printf("Steam: %s\n", steamid.SID64ToSID(sid64))
+	// Normal conversions like these do not require a key to be set
+	sid64, errConv := steamid.StringToSID64("76561197961279983")
+	if errConv != nil {
+		fmt.Printf("Could not convert string: %v", errConv)
+	}
+	if sid64 != resolvedSID64 {
+		fmt.Printf("They dont match!")
+	}
+	fmt.Printf("Steam64: %d\n", sid64)
+	fmt.Printf("Steam32: %d\n", steamid.SID64ToSID32(sid64))
+	fmt.Printf("Steam3: %s\n", steamid.SID64ToSID3(sid64))
+	fmt.Printf("Steam: %s\n", steamid.SID64ToSID(sid64))
 }
 
 ```

@@ -111,7 +111,7 @@ func TestMain(m *testing.M) {
 	key, found := os.LookupEnv("STEAM_TOKEN")
 	if found {
 		if e := SetKey(key); e != nil {
-			fmt.Printf(e.Error())
+			fmt.Print(e.Error())
 		}
 	}
 	os.Exit(m.Run())
