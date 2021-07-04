@@ -52,6 +52,7 @@ STEAM_0:0:86173181
 }
 
 func TestConversions(t *testing.T) {
+	require.Equal(t, SID64ToSID3(76561199127271263), SID3("[U:1:1167005535]"))
 	require.Equal(t, SID3ToSID32("[U:1:172346362]"), SID32(172346362))
 	require.Equal(t, SID3ToSID64("[U:1:172346362]"), SID64(76561198132612090))
 	require.Equal(t, SID3ToSID("[U:1:172346362]"), SID("STEAM_0:0:86173181"))

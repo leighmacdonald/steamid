@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	urlVanity = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
+	urlVanity    = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
+	baseIDString = "76561197960265728"
 )
 
 var (
@@ -51,7 +52,7 @@ var (
 )
 
 // AppID is the Steam appdb ID
-type AppID int64
+type AppID uint32
 
 // SID represents a SteamID
 // STEAM_0:0:86173181
@@ -72,6 +73,16 @@ type SID3 string
 // GID represents a GroupID (64bit)
 // 103582791453729676
 type GID uint64 // 103582791453729676
+
+type Collection []SID64
+
+func (c Collection) ToStringSlice() []string {
+	var s []string
+	for _, st := range c {
+		s = append(s, st.String())
+	}
+	return s
+}
 
 // String renders the GID as a int64 string
 func (t GID) String() string {
@@ -186,7 +197,7 @@ func (t GID) Int64() int64 {
 // 0 is returned if the process was unsuccessful.
 func SIDToSID64(steamID SID) SID64 {
 	idParts := strings.Split(string(steamID), ":")
-	magic, _ := new(big.Int).SetString("76561197960265728", 10)
+	magic, _ := new(big.Int).SetString(baseIDString, 10)
 	steam64, _ := new(big.Int).SetString(idParts[2], 10)
 	steam64 = steam64.Mul(steam64, big.NewInt(2))
 	steam64 = steam64.Add(steam64, magic)
@@ -212,7 +223,11 @@ func SIDToSID3(steamID SID) SID3 {
 	if err != nil {
 		return ""
 	}
-	return SID3("[U:1:" + strconv.FormatUint(steamLastPart*2, 10) + "]")
+	steamMidPart, err2 := strconv.ParseUint(steamIDParts[len(steamIDParts)-2], 10, 64)
+	if err2 != nil {
+		return ""
+	}
+	return SID3("[U:1:" + strconv.FormatUint((steamLastPart*2)+steamMidPart, 10) + "]")
 }
 
 // SID64ToSID converts a given SID64 to a SteamID.
@@ -221,7 +236,7 @@ func SIDToSID3(steamID SID) SID3 {
 // An empty SteamID (string) is returned if the process was unsuccessful.
 func SID64ToSID(steam64 SID64) SID {
 	steamID := new(big.Int).SetInt64(int64(steam64))
-	magic, _ := new(big.Int).SetString("76561197960265728", 10)
+	magic, _ := new(big.Int).SetString(baseIDString, 10)
 	steamID = steamID.Sub(steamID, magic)
 	isServer := new(big.Int).And(steamID, big.NewInt(1))
 	steamID = steamID.Sub(steamID, isServer)

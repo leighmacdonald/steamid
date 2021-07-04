@@ -1,11 +1,8 @@
 package extra
 
 import (
-	"context"
-	"github.com/leighmacdonald/steamid/v2/steamid"
 	"github.com/stretchr/testify/require"
 	"testing"
-	"time"
 )
 
 func TestParseStatus(t *testing.T) {
@@ -27,7 +24,7 @@ edicts  : 1717 used of 2048 max
 #   4268 "Progseeks"         [U:1:191380023]     01:43      105    0 active 1.2.67.76:27005
 #   4181 "Gera"              [U:1:202327912]      2:39:57   104    0 active 1.2.62.100:27005
 #   4271 "A Good Idea"       [U:1:431565997]     00:41       68    0 active 1.2.104.247:27005
-#   4212 "Chance The Raper"  [U:1:106864873]      1:51:58   106    0 active 1.2.215.62:27005
+#   4212 "Chance The Memer"  [U:1:106864873]      1:51:58   106    0 active 1.2.215.62:27005
 #   4259 "Greenwood RN"      [U:1:128375332]     24:51       67    0 active 1.2.136.246:27005
 #   4246 "Frank"             [U:1:166415783]      1:01:59   133    0 active 1.2.23.197:27005
 `
@@ -44,18 +41,4 @@ edicts  : 1717 used of 2048 max
 	require.Equal(t, []int{1717, 2048}, st.Edicts)
 	require.Equal(t, []string{"Uncletopia", "nocrits", "nodmgspread", "payload"}, st.Tags)
 	require.Equal(t, "5970214/24 5970214 secure", st.Version)
-}
-
-
-func TestPlayerSummaries(t *testing.T) {
-	if steamid.GetKey() == "" {
-		t.Skip("steam_api_key unset, SetKey() required")
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	ids := []steamid.SID64{76561198132612090, 76561197961279983, 76561197960435530}
-	p, err := PlayerSummaries(ctx, ids)
-	require.NoError(t, err)
-	require.Equal(t, len(ids), len(p))
 }
