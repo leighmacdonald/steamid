@@ -9,7 +9,8 @@ import (
 )
 
 func TestRandSID64(t *testing.T) {
-	require.True(t, RandSID64().Valid())
+	sid := RandSID64()
+	require.True(t, sid.Valid())
 }
 
 func TestSID64FromString(t *testing.T) {

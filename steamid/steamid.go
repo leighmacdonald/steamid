@@ -1,18 +1,16 @@
 // Package steamid provides conversion to and from all steam ID formats.
 //
 // If you wish to resolve vanity names like https://steamcommunity.com/id/SQUIRRELLY into
-// steam id, or to GetPlayerSummaries requests against the WebAPI you must first obtain a
+// steam id, or to GetPlayerSummaries requests against the WebAPI you must first obtain an
 // API key at https://steamcommunity.com/dev/apikey.
 //
 // You can then set it for the package to use:
 //
-// 		steamid.SetKey(apiKey)
+//		steamid.SetKey(apiKey)
 //
 //	With a steam api key set you can now use the following functions:
 //
 //		steamid.ResolveVanity()
-//
-//
 package steamid
 
 import (
@@ -20,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -51,7 +49,7 @@ var (
 		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 )
 
-// AppID is the Steam appdb ID
+// AppID is the id associated with games/apps
 type AppID uint32
 
 // SID represents a SteamID
@@ -84,25 +82,34 @@ func (c Collection) ToStringSlice() []string {
 	return s
 }
 
-// String renders the GID as a int64 string
+func (c Collection) Contains(sid64 SID64) bool {
+	for _, player := range c {
+		if player == sid64 {
+			return true
+		}
+	}
+	return false
+}
+
+// String renders the GID as an int64 string
 func (t GID) String() string {
 	return strconv.FormatInt(int64(t), 10)
 }
 
-// String renders the SID64 as a int64 string
-func (t SID64) String() string {
-	return strconv.FormatInt(int64(t), 10)
+// String renders the SID64 as an int64 string
+func (t *SID64) String() string {
+	return strconv.FormatInt(int64(*t), 10)
 }
 
 // Int64 casts the strings to a raw int64
-func (t SID64) Int64() int64 {
-	return int64(t)
+func (t *SID64) Int64() int64 {
+	return int64(*t)
 }
 
 // Valid ensures the value is at least large enough to be valid
 // No further validation is done.
-func (t SID64) Valid() bool {
-	return t > 76561197960265728
+func (t *SID64) Valid() bool {
+	return *t > 76561197960265728
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
@@ -134,16 +141,6 @@ func SetKey(key string) error {
 	}
 	apiKey = key
 	return nil
-}
-
-// GetKey returns the steam web api key, if set, otherwise empty string
-func GetKey() string {
-	return apiKey
-}
-
-// GetHTTP returns the currently configured http.Client
-func GetHTTP() *http.Client {
-	return httpClient
 }
 
 var idGen uint64 = 76561197960265728
@@ -192,7 +189,7 @@ func (t GID) Int64() int64 {
 }
 
 // SIDToSID64 converts a given SteamID to a SID64.
-// eg. STEAM_0:0:86173181 -> 76561198132612090
+// e.g. STEAM_0:0:86173181 -> 76561198132612090
 //
 // 0 is returned if the process was unsuccessful.
 func SIDToSID64(steamID SID) SID64 {
@@ -206,7 +203,7 @@ func SIDToSID64(steamID SID) SID64 {
 }
 
 // SIDToSID32 converts a given SteamID to a SID32.
-// eg. STEAM_0:0:86173181 -> 172346362
+// e.g. STEAM_0:0:86173181 -> 172346362
 //
 // 0 is returned if the process was unsuccessful.
 func SIDToSID32(steamID SID) SID32 {
@@ -214,7 +211,7 @@ func SIDToSID32(steamID SID) SID32 {
 }
 
 // SIDToSID3 converts a given SteamID to a SID3.
-// eg. STEAM_0:0:86173181 -> [U:1:172346362]
+// e.g. STEAM_0:0:86173181 -> [U:1:172346362]
 //
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SIDToSID3(steamID SID) SID3 {
@@ -231,7 +228,7 @@ func SIDToSID3(steamID SID) SID3 {
 }
 
 // SID64ToSID converts a given SID64 to a SteamID.
-// eg. 76561198132612090 -> STEAM_0:0:86173181
+// e.g. 76561198132612090 -> STEAM_0:0:86173181
 //
 // An empty SteamID (string) is returned if the process was unsuccessful.
 func SID64ToSID(steam64 SID64) SID {
@@ -245,7 +242,7 @@ func SID64ToSID(steam64 SID64) SID {
 }
 
 // SID64ToSID32 converts a given SID64 to a SID32.
-// eg. 76561198132612090 -> 172346362
+// e.g. 76561198132612090 -> 172346362
 //
 // 0 is returned if the process was unsuccessful.
 func SID64ToSID32(steam64 SID64) SID32 {
@@ -261,7 +258,7 @@ func SID64ToSID32(steam64 SID64) SID32 {
 }
 
 // SID64ToSID3 converts a given SID64 to a SID3.
-// eg. 76561198132612090 -> [U:1:172346362]
+// e.g. 76561198132612090 -> [U:1:172346362]
 //
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SID64ToSID3(steam64 SID64) SID3 {
@@ -281,7 +278,7 @@ func SID32ToSID(steam32 SID32) SID {
 }
 
 // SID32ToSID64 converts a given SID32 to a SID64.
-// eg. 172346362 -> 76561198132612090
+// e.g. 172346362 -> 76561198132612090
 //
 // 0 is returned if the process was unsuccessful.
 func SID32ToSID64(steam32 SID32) SID64 {
@@ -381,9 +378,9 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	if err != nil {
 		return GID(0), errors.Wrapf(err, "Failed to fetch GID from host")
 	}
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return GID(0), errors.Wrapf(err, "Failed to read response body")
+	content, errRead := io.ReadAll(resp.Body)
+	if errRead != nil {
+		return GID(0), errors.Wrapf(errRead, "Failed to read response body")
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -415,9 +412,9 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if err != nil {
 		return SID64(0), errors.Wrapf(err, "Failed to perform vanity lookup")
 	}
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return SID64(0), errors.Wrapf(err, "Failed to read vanity response body")
+	content, errRead := io.ReadAll(resp.Body)
+	if errRead != nil {
+		return SID64(0), errors.Wrapf(errRead, "Failed to read vanity response body")
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -480,7 +477,9 @@ func ResolveSID64(ctx context.Context, query string) (SID64, error) {
 
 // StringToSID64 will attempt to convert a string containing some format of steam id into
 // a SID64 automatically, picking the appropriate matching conversion to make.
-//  This will not resolve vanity ids. Use ResolveSID64 if you also want to attempt
+//
+//	This will not resolve vanity ids. Use ResolveSID64 if you also want to attempt
+//
 // to resolve it as a vanity url in addition.
 func StringToSID64(s string) (SID64, error) {
 	us := strings.ToUpper(s)
