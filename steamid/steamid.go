@@ -115,18 +115,30 @@ func (t *SID64) Valid() bool {
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
 // do all steam id types by calling StringToSID64
 func (t *SID64) UnmarshalJSON(data []byte) error {
-	var sid string
-	if err := json.Unmarshal(data, &sid); err != nil {
+	var (
+		sid       any
+		outputSid SID64
+		err       error
+	)
+
+	if err = json.Unmarshal(data, &sid); err != nil {
 		return errors.Wrapf(err, "failed to decode steamid: %v", err)
 	}
-	v, err := StringToSID64(sid)
-	if err != nil {
-		return errors.Wrap(err, "Failed to marshal string to SID64")
+
+	switch sid.(type) {
+	case string:
+		outputSid, err = StringToSID64(sid.(string))
+		if err != nil {
+			return errors.Wrap(err, "Failed to marshal string to SID64")
+		}
+	case int64:
+		outputSid = SID64(sid.(int64))
 	}
-	if !v.Valid() {
+
+	if !outputSid.Valid() {
 		return errors.Errorf("Invalid steam id: %s", sid)
 	}
-	*t = v
+	*t = outputSid
 	return nil
 }
 
