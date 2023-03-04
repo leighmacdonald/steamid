@@ -2,6 +2,7 @@ package steamid
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -53,6 +54,7 @@ STEAM_0:0:86173181
 }
 
 func TestConversions(t *testing.T) {
+	// id := 76561197970669109
 	require.Equal(t, SID64ToSID3(76561199127271263), SID3("[U:1:1167005535]"))
 	require.Equal(t, SID3ToSID32("[U:1:172346362]"), SID32(172346362))
 	require.Equal(t, SID3ToSID64("[U:1:172346362]"), SID64(76561198132612090))
@@ -66,6 +68,15 @@ func TestConversions(t *testing.T) {
 	require.Equal(t, SIDToSID3("STEAM_0:0:86173181"), SID3("[U:1:172346362]"))
 	require.Equal(t, SIDToSID32("STEAM_0:0:86173181"), SID32(172346362))
 	require.Equal(t, SIDToSID64("STEAM_0:0:86173181"), SID64(76561198132612090))
+}
+
+func TestSID64UnmarshalJSON(t *testing.T) {
+	type tc struct {
+		SteamidString string `json:"steamid_string"`
+	}
+	var value tc
+	require.NoError(t, json.Unmarshal([]byte(`{"steamid_string":"76561197970669109"}`), &value))
+	require.Equal(t, "76561197970669109", value.SteamidString)
 }
 
 func TestResolveGID(t *testing.T) {
