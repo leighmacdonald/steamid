@@ -116,29 +116,26 @@ func (t *SID64) Valid() bool {
 // do all steam id types by calling StringToSID64
 func (t *SID64) UnmarshalJSON(data []byte) error {
 	var (
-		sid       any
+		sidInput  any
 		outputSid SID64
 		err       error
 	)
-
-	if err = json.Unmarshal(data, &sid); err != nil {
+	if err = json.Unmarshal(data, &sidInput); err != nil {
 		return errors.Wrapf(err, "failed to decode steamid: %v", err)
 	}
-
-	switch sid.(type) {
+	switch sid := sidInput.(type) {
 	case string:
-		outputSid, err = StringToSID64(sid.(string))
+		outputSid, err = StringToSID64(sid)
 		if err != nil {
 			return errors.Wrap(err, "Failed to marshal string to SID64")
 		}
 	case int64:
-		outputSid = SID64(sid.(int64))
+		outputSid = SID64(sid)
 	default:
 		return errors.Errorf("Invalid steam id type: %s", sid)
 	}
-
 	if !outputSid.Valid() {
-		return errors.Errorf("Invalid steam id: %s", sid)
+		return errors.Errorf("Invalid steam id: %s", sidInput)
 	}
 	*t = outputSid
 	return nil
@@ -230,12 +227,12 @@ func SIDToSID32(steamID SID) SID32 {
 // An empty SID3 (string) is returned if the process was unsuccessful.
 func SIDToSID3(steamID SID) SID3 {
 	steamIDParts := strings.Split(string(steamID), ":")
-	steamLastPart, err := strconv.ParseUint(steamIDParts[len(steamIDParts)-1], 10, 64)
-	if err != nil {
+	steamLastPart, errLast := strconv.ParseUint(steamIDParts[len(steamIDParts)-1], 10, 64)
+	if errLast != nil {
 		return ""
 	}
-	steamMidPart, err2 := strconv.ParseUint(steamIDParts[len(steamIDParts)-2], 10, 64)
-	if err2 != nil {
+	steamMidPart, errMid := strconv.ParseUint(steamIDParts[len(steamIDParts)-2], 10, 64)
+	if errMid != nil {
 		return ""
 	}
 	return SID3("[U:1:" + strconv.FormatUint((steamLastPart*2)+steamMidPart, 10) + "]")
@@ -352,7 +349,6 @@ func SID3ToSID64(steam3 SID3) SID64 {
 	if err != nil {
 		return SID64(0)
 	}
-
 	return SID32ToSID64(SID32(steam32))
 }
 
@@ -384,9 +380,9 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 		groupVanityURL = m[1]
 	}
 	u := "https://steamcommunity.com/groups/" + groupVanityURL + "/memberslistxml?xml=1"
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
-	if err != nil {
-		return 0, errors.Wrap(err, "Failed to create request")
+	req, errReq := http.NewRequestWithContext(ctx, "GET", u, nil)
+	if errReq != nil {
+		return 0, errors.Wrap(errReq, "Failed to create request")
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -401,9 +397,9 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	}()
 	groupIDTags := reGroupIDTags.FindSubmatch(content)
 	if len(groupIDTags) >= 2 {
-		groupID, err := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
-		if err != nil {
-			return GID(0), errors.Wrapf(err, "Failed to convert GID to int")
+		groupID, errUint := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
+		if errUint != nil {
+			return GID(0), errors.Wrapf(errUint, "Failed to convert GID to int")
 		}
 		return GID(groupID), nil
 	}
@@ -422,9 +418,9 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to create request")
 	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return SID64(0), errors.Wrapf(err, "Failed to perform vanity lookup")
+	resp, errDo := httpClient.Do(req)
+	if errDo != nil {
+		return SID64(0), errors.Wrapf(errDo, "Failed to perform vanity lookup")
 	}
 	content, errRead := io.ReadAll(resp.Body)
 	if errRead != nil {
@@ -439,8 +435,8 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 			Success int
 		}
 	}
-	if err := json.Unmarshal(content, &vanityURLResponse); err != nil {
-		return SID64(0), errors.Wrap(err, "Failed to decode json vanity response")
+	if errUnmarshal := json.Unmarshal(content, &vanityURLResponse); err != nil {
+		return SID64(0), errors.Wrap(errUnmarshal, "Failed to decode json vanity response")
 	}
 	if vanityURLResponse.Response.Success != 1 {
 		return SID64(0), errors.Errorf("Invalid success code received: %d", vanityURLResponse.Response.Success)
@@ -448,8 +444,8 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if len(vanityURLResponse.Response.Steamid) != 17 {
 		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityURLResponse.Response.Steamid)
 	}
-	output, errI := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
-	if errI != nil {
+	output, errParseInt := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
+	if errParseInt != nil {
 		return SID64(0), errors.Wrap(err, "Failed to parse int from steamid received")
 	}
 	return SID64(output), nil
