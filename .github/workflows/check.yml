@@ -1,0 +1,60 @@
+name: Build Workflow
+
+on:
+  push:
+
+env:
+  STEAM_TOKEN: ${{secrets.STEAM_TOKEN}}
+
+jobs:
+  lint:
+    name: Linter
+    environment: master
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Install Analyzer Dependencies
+        run: make check_deps
+
+      - name: Lint golangci-lint
+        run: make lint_golangci
+
+      - name: Lint vet
+        run: make lint_vet
+
+      - name: Lint imports
+        run: make lint_imports
+
+      - name: Lint cyclo
+        run: make lint_cyclo
+
+      - name: Lint golint
+        run: make lint_golint
+
+      - name: Lint static
+        run: make static
+
+  test:
+    runs-on: ubuntu-latest
+    name: Test
+    environment: master
+    needs: lint
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: Test
+        run: make test
