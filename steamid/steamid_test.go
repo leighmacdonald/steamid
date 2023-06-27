@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/leighmacdonald/steamid/v2/steamid"
+	"github.com/leighmacdonald/steamid/v3/steamid"
 
 	"github.com/stretchr/testify/require"
 )

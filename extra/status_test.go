@@ -3,7 +3,7 @@ package extra_test
 import (
 	"testing"
 
-	"github.com/leighmacdonald/steamid/v2/extra"
+	"github.com/leighmacdonald/steamid/v3/extra"
 
 	"github.com/stretchr/testify/require"
 )

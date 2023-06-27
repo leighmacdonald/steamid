@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/leighmacdonald/steamid/v2/steamid"
+	"github.com/leighmacdonald/steamid/v3/steamid"
 	"github.com/pkg/errors"
 )
 

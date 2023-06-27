@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/leighmacdonald/steamid/v2/extra"
+	"github.com/leighmacdonald/steamid/v3/extra"
 	"github.com/spf13/cobra"
 )
 

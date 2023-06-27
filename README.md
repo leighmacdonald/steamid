@@ -109,7 +109,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/leighmacdonald/steamid/v2/steamid"
+	"github.com/leighmacdonald/steamid/v3/steamid"
 	"os"
 )
 
