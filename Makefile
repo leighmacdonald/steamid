@@ -41,9 +41,6 @@ check: lint_golangci static
 lint_golangci:
 	@golangci-lint run --timeout 3m
 
-lint_golint:
-	@golint -set_exit_status $(go list -tags ci ./...)
-
 static:
 	@staticcheck -go 1.20 ./...
 

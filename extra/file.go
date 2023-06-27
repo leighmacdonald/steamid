@@ -29,35 +29,44 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 	default:
 		return errors.Errorf("invalid id type: %s", idType)
 	}
+
 	writer := bufio.NewWriter(output)
 	reader := bufio.NewScanner(input)
+
 	var lines []string
 	for reader.Scan() {
 		lines = append(lines, reader.Text())
 	}
+
 	if err := reader.Err(); err != nil {
 		return errors.Errorf("Error reading input: %v", err)
 	}
+
 	ids64 := steamid.ParseString(strings.Join(lines, ""))
+
 	for _, id := range ids64 {
-		v := ""
+		value := ""
+
 		switch idType {
 		case "steam64":
-			v = id.String()
+			value = id.String()
 		case "steam32":
-			v = strconv.FormatInt(int64(steamid.SID64ToSID32(id)), 10)
+			value = strconv.FormatInt(int64(steamid.SID64ToSID32(id)), 10)
 		case "steam3":
-			v = string(steamid.SID64ToSID3(id))
+			value = string(steamid.SID64ToSID3(id))
 		case "steam":
-			v = string(steamid.SID64ToSID(id))
+			value = string(steamid.SID64ToSID(id))
 		}
-		_, err := writer.WriteString(fmt.Sprintf(format, v))
-		if err != nil {
-			return errors.Wrapf(err, "Error writing id to output")
+
+		_, errWrite := writer.WriteString(fmt.Sprintf(format, value))
+		if errWrite != nil {
+			return errors.Wrapf(errWrite, "Error writing id to output")
 		}
-		if err := writer.Flush(); err != nil {
-			return errors.Wrapf(err, "Failed to flush remaining data")
+
+		if errFlush := writer.Flush(); errFlush != nil {
+			return errors.Wrapf(errFlush, "Failed to flush remaining data")
 		}
 	}
+
 	return nil
 }

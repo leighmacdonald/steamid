@@ -9,6 +9,8 @@ import (
 )
 
 func TestParseStatus(t *testing.T) {
+	t.Parallel()
+
 	statusText := `hostname: Uncletopia | US West 2
 version : 5970214/24 5970214 secure
 udp/ip  : 23.239.22.163:27015  (public ip: 23.239.22.163)
@@ -35,13 +37,13 @@ edicts  : 1717 used of 2048 max
 	require.NotNil(t, ids)
 	require.Equal(t, len(ids), 11)
 
-	st, err := extra.ParseStatus(statusText, true)
+	parsedStatus, err := extra.ParseStatus(statusText, true)
 	require.NoError(t, err)
-	require.Equal(t, "Uncletopia | US West 2", st.ServerName)
-	require.Equal(t, 32, st.PlayersMax)
-	require.Equal(t, 11, st.PlayersCount)
-	require.Equal(t, "pl_goldrush", st.Map)
-	require.Equal(t, []int{1717, 2048}, st.Edicts)
-	require.Equal(t, []string{"Uncletopia", "nocrits", "nodmgspread", "payload"}, st.Tags)
-	require.Equal(t, "5970214/24 5970214 secure", st.Version)
+	require.Equal(t, "Uncletopia | US West 2", parsedStatus.ServerName)
+	require.Equal(t, 32, parsedStatus.PlayersMax)
+	require.Equal(t, 11, parsedStatus.PlayersCount)
+	require.Equal(t, "pl_goldrush", parsedStatus.Map)
+	require.Equal(t, []int{1717, 2048}, parsedStatus.Edicts)
+	require.Equal(t, []string{"Uncletopia", "nocrits", "nodmgspread", "payload"}, parsedStatus.Tags)
+	require.Equal(t, "5970214/24 5970214 secure", parsedStatus.Version)
 }

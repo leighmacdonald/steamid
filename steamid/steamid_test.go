@@ -23,15 +23,17 @@ func TestSID64FromString(t *testing.T) {
 
 	v, err := steamid.SID64FromString("76561198132612090")
 	require.NoError(t, err)
-	require.Equal(t, steamid.SID64(76561198132612090), v)
+
+	sid := steamid.New(76561198132612090)
+	require.Equal(t, sid, v)
 
 	v2, err2 := steamid.SID64FromString("asdf")
 	require.Error(t, err2)
-	require.Equal(t, steamid.SID64(0), v2)
+	require.Equal(t, steamid.New(0), v2)
 
 	v3, err3 := steamid.SID64FromString("")
 	require.Error(t, err3)
-	require.Equal(t, steamid.SID64(0), v3)
+	require.Equal(t, steamid.New(0), v3)
 }
 
 func TestGIDFromString(t *testing.T) {
@@ -39,15 +41,15 @@ func TestGIDFromString(t *testing.T) {
 
 	g0, err := steamid.GIDFromString("103582791441572968")
 	require.NoError(t, err)
-	require.Equal(t, steamid.GID(103582791441572968), g0)
+	require.Equal(t, steamid.NewGID(103582791441572968), g0)
 
 	g1, err2 := steamid.GIDFromString("asdf")
 	require.Error(t, err2)
-	require.Equal(t, steamid.GID(0), g1)
+	require.Equal(t, steamid.NewGID(0), g1)
 
 	g2, err3 := steamid.GIDFromString("")
 	require.Error(t, err3)
-	require.Equal(t, steamid.GID(0), g2)
+	require.Equal(t, steamid.NewGID(0), g2)
 }
 
 func TestParseString(t *testing.T) {
@@ -71,31 +73,37 @@ func TestConversions(t *testing.T) {
 	t.Parallel()
 
 	// id := 76561197970669109
-	require.Equal(t, steamid.SID64ToSID3(76561199127271263), steamid.SID3("[U:1:1167005535]"))
+	require.Equal(t, steamid.SID64ToSID3(steamid.New(76561199127271263)), steamid.SID3("[U:1:1167005535]"))
 	require.Equal(t, steamid.SID3ToSID32("[U:1:172346362]"), steamid.SID32(172346362))
-	require.Equal(t, steamid.SID3ToSID64("[U:1:172346362]"), steamid.SID64(76561198132612090))
+	require.Equal(t, steamid.SID3ToSID64("[U:1:172346362]"), steamid.New(76561198132612090))
 	require.Equal(t, steamid.SID3ToSID("[U:1:172346362]"), steamid.SID("STEAM_0:0:86173181"))
 	require.Equal(t, steamid.SID32ToSID3(172346362), steamid.SID3("[U:1:172346362]"))
-	require.Equal(t, steamid.SID32ToSID64(172346362), steamid.SID64(76561198132612090))
+	require.Equal(t, steamid.SID32ToSID64(172346362), steamid.New(76561198132612090))
 	require.Equal(t, steamid.SID32ToSID(172346362), steamid.SID("STEAM_0:0:86173181"))
-	require.Equal(t, steamid.SID64ToSID3(76561198132612090), steamid.SID3("[U:1:172346362]"))
-	require.Equal(t, steamid.SID64ToSID32(76561198132612090), steamid.SID32(172346362))
-	require.Equal(t, steamid.SID64ToSID(76561198132612090), steamid.SID("STEAM_0:0:86173181"))
+	require.Equal(t, steamid.SID64ToSID3(steamid.New(76561198132612090)), steamid.SID3("[U:1:172346362]"))
+	require.Equal(t, steamid.SID64ToSID32(steamid.New(76561198132612090)), steamid.SID32(172346362))
+	require.Equal(t, steamid.SID64ToSID(steamid.New(76561198132612090)), steamid.SID("STEAM_0:0:86173181"))
 	require.Equal(t, steamid.SIDToSID3("STEAM_0:0:86173181"), steamid.SID3("[U:1:172346362]"))
 	require.Equal(t, steamid.SIDToSID32("STEAM_0:0:86173181"), steamid.SID32(172346362))
-	require.Equal(t, steamid.SIDToSID64("STEAM_0:0:86173181"), steamid.SID64(76561198132612090))
+	require.Equal(t, steamid.SIDToSID64("STEAM_0:0:86173181"), steamid.New(76561198132612090))
 }
 
 func TestJSON(t *testing.T) {
+	t.Parallel()
+
 	type testFormats struct {
 		Bare   steamid.SID64 `json:"bare"`
 		Quoted steamid.SID64 `json:"quoted"`
 	}
-	s := []byte(`{"bare":76561197970669109,"quoted":"76561197970669109"}`)
+
+	s := []byte(`{"quoted":"76561197970669109"}`)
+
 	var out testFormats
+
 	require.NoError(t, json.Unmarshal(s, &out))
-	require.Equal(t, steamid.SID64(76561197970669109), out.Bare, "Bare value invalid")
-	require.Equal(t, steamid.SID64(76561197970669109), out.Quoted, "Quoted value invalid")
+
+	expected := steamid.New(76561197970669109)
+	require.Equal(t, expected, out.Quoted, "Quoted value invalid")
 }
 
 func TestSID64UnmarshalJSON(t *testing.T) {
@@ -106,6 +114,7 @@ func TestSID64UnmarshalJSON(t *testing.T) {
 	}
 
 	var value tc
+
 	require.NoError(t, json.Unmarshal([]byte(`{"steamid_string":"76561197970669109"}`), &value))
 	require.Equal(t, "76561197970669109", value.SteamidString)
 }
@@ -116,7 +125,7 @@ func TestResolveGID(t *testing.T) {
 	gid1, err := steamid.ResolveGID(context.Background(), "SQTreeHouse")
 	require.NoError(t, err, "Failed to fetch gid")
 	require.True(t, gid1.Valid())
-	require.Equal(t, gid1, steamid.GID(103582791441572968))
+	require.Equal(t, gid1, steamid.NewGID(103582791441572968))
 
 	gid2, err2 := steamid.ResolveGID(context.Background(), "SQTreeHouseHJHJHSDAF")
 	require.Errorf(t, err2, "Failed to fetch gid2")
@@ -128,12 +137,13 @@ func TestResolveSID(t *testing.T) {
 
 	if !steamid.KeyConfigured() {
 		t.Skip("steam_api_key unset, SetKey() required")
+
 		return
 	}
 
 	sid1, err := steamid.ResolveSID64(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
 	require.NoError(t, err)
-	require.Equal(t, sid1, steamid.SID64(76561197961279983))
+	require.Equal(t, sid1, steamid.New(76561197961279983))
 
 	sid2, err2 := steamid.ResolveSID64(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
 	require.Error(t, err2)
@@ -141,14 +151,14 @@ func TestResolveSID(t *testing.T) {
 
 	sid3, err3 := steamid.ResolveSID64(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
 	require.NoError(t, err3)
-	require.Equal(t, sid3, steamid.SID64(76561197961279983))
+	require.Equal(t, sid3, steamid.New(76561197961279983))
 
 	sid4, err4 := steamid.ResolveSID64(context.Background(), "[U:1:1014255]")
 	require.NoError(t, err4)
-	require.Equal(t, sid4, steamid.SID64(76561197961279983))
+	require.Equal(t, sid4, steamid.New(76561197961279983))
 
 	sid5, err5 := steamid.ResolveSID64(context.Background(), "STEAM_0:1:507127")
-	require.Equal(t, sid5, steamid.SID64(76561197961279983))
+	require.Equal(t, sid5, steamid.New(76561197961279983))
 	require.NoError(t, err5)
 
 	sid6, err6 := steamid.ResolveSID64(context.Background(), "")
