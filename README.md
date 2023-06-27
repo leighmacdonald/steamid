@@ -131,10 +131,10 @@ func main() {
 	if errConv != nil {
 		fmt.Printf("Could not convert string: %v", errConv)
 	}
-	if sid64 != resolvedSID64 {
+	if sid64.Int64() != resolvedSID64.Int64() {
 		fmt.Printf("They dont match!")
 	}
-	fmt.Printf("Steam64: %d\n", sid64)
+	fmt.Printf("Steam64: %d\n", sid64.Int64())
 	fmt.Printf("Steam32: %d\n", steamid.SID64ToSID32(sid64))
 	fmt.Printf("Steam3: %s\n", steamid.SID64ToSID3(sid64))
 	fmt.Printf("Steam: %s\n", steamid.SID64ToSID(sid64))
