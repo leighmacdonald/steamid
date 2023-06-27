@@ -50,6 +50,7 @@ var (
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
 		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 	ErrInvalidSID = errors.New("Invalid steam id")
+	ErrInvalidGID = errors.New("Invalid gid")
 )
 
 // AppID is the id associated with games/apps.
@@ -89,68 +90,6 @@ func New(value any) SID64 {
 	}
 
 	return s
-}
-
-func NewGID(value any) GID {
-	s := GID{}
-
-	switch v := value.(type) {
-	case string:
-		parsedGID, errGID := StringToSID64(v)
-		if errGID != nil {
-			return GID{}
-		}
-
-		s.SetInt64(parsedGID.Int64())
-	case uint64:
-		s.SetUint64(v)
-	case int:
-		s.SetInt64(int64(v))
-	case int64:
-		s.SetInt64(v)
-	case float64:
-		s.SetInt64(int64(v))
-	default:
-		s.SetInt64(0)
-	}
-
-	return s
-}
-
-// SID32 represents a Steam32
-// 172346362.
-type SID32 uint32
-
-// SID3 represents a Steam3
-// [U:1:172346362].
-type SID3 string
-
-// GID represents a GroupID (64bit)
-// 103582791453729676.
-type GID struct {
-	big.Int
-}
-
-type Collection []SID64
-
-func (c Collection) ToStringSlice() []string {
-	var s []string
-
-	for _, st := range c {
-		s = append(s, st.String())
-	}
-
-	return s
-}
-
-func (c Collection) Contains(sid64 SID64) bool {
-	for _, player := range c {
-		if player.Uint64() == sid64.Uint64() {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Valid ensures the value is at least large enough to be valid
@@ -206,6 +145,120 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// GID represents a GroupID (64bit)
+// 103582791453729676.
+type GID struct {
+	big.Int
+}
+
+func NewGID(value any) GID {
+	s := GID{}
+
+	switch v := value.(type) {
+	case string:
+		parsedGID, errGID := StringToSID64(v)
+		if errGID != nil {
+			return GID{}
+		}
+
+		s.SetInt64(parsedGID.Int64())
+	case uint64:
+		s.SetUint64(v)
+	case int:
+		s.SetInt64(int64(v))
+	case int64:
+		s.SetInt64(v)
+	case float64:
+		s.SetInt64(int64(v))
+	default:
+		s.SetInt64(0)
+	}
+
+	return s
+}
+
+// Valid checks if the valid meets the minimum requirements to be considered valid.
+func (t GID) Valid() bool {
+	return t.Uint64() > BaseGID
+}
+
+func (t GID) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%d\"", t.Uint64())), nil
+}
+
+// UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
+// do all steam id types by calling StringToSID64.
+func (t *GID) UnmarshalJSON(data []byte) error {
+	var (
+		gidInput  any
+		outputGID GID
+		err       error
+	)
+
+	if err = json.Unmarshal(data, &gidInput); err != nil {
+		return errors.Wrapf(err, "failed to decode gid: %v", err)
+	}
+
+	switch gid := gidInput.(type) {
+	case string:
+		outputGID, err = GIDFromString(gid)
+		if err != nil {
+			return errors.Wrap(err, "Failed to marshal string to SID64")
+		}
+
+		t.SetInt64(outputGID.Int64())
+	case int64:
+		t.SetInt64(gid)
+	case float64:
+		var z big.Int
+		_, ok := z.SetString(gidInput.(string), 10)
+
+		if !ok {
+			return ErrInvalidGID
+		}
+
+		t.SetUint64(z.Uint64())
+	default:
+		return ErrInvalidGID
+	}
+
+	if !outputGID.Valid() {
+		return ErrInvalidGID
+	}
+
+	return nil
+}
+
+// SID32 represents a Steam32
+// 172346362.
+type SID32 uint32
+
+// SID3 represents a Steam3
+// [U:1:172346362].
+type SID3 string
+
+type Collection []SID64
+
+func (c Collection) ToStringSlice() []string {
+	var s []string
+
+	for _, st := range c {
+		s = append(s, st.String())
+	}
+
+	return s
+}
+
+func (c Collection) Contains(sid64 SID64) bool {
+	for _, player := range c {
+		if player.Uint64() == sid64.Uint64() {
+			return true
+		}
+	}
+
+	return false
+}
+
 func KeyConfigured() bool {
 	return apiKey != ""
 }
@@ -252,12 +305,12 @@ func SID64FromString(steamID string) (SID64, error) {
 }
 
 // GIDFromString will attempt to convert a properly formatted string to a GID.
-func GIDFromString(steamID string) (GID, error) {
-	if steamID == "" {
+func GIDFromString(gidString string) (GID, error) {
+	if gidString == "" {
 		return GID{}, errors.Errorf("Cannot convert empty string")
 	}
 
-	i, err := strconv.ParseInt(steamID, 10, 64)
+	i, err := strconv.ParseInt(gidString, 10, 64)
 	if err != nil {
 		return GID{}, errors.Wrap(err, "Failed to parse integer from string")
 	}
@@ -270,11 +323,6 @@ func GIDFromString(steamID string) (GID, error) {
 	}
 
 	return g, nil
-}
-
-// Valid checks if the valid meets the minimum requirements to be considered valid.
-func (t GID) Valid() bool {
-	return t.Uint64() > BaseGID
 }
 
 // SIDToSID64 converts a given SteamID to a SID64.

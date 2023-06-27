@@ -92,7 +92,6 @@ func TestJSON(t *testing.T) {
 	t.Parallel()
 
 	type testFormats struct {
-		Bare   steamid.SID64 `json:"bare"`
 		Quoted steamid.SID64 `json:"quoted"`
 	}
 
@@ -108,6 +107,17 @@ func TestJSON(t *testing.T) {
 	body, errMarshal := json.Marshal(expected)
 	require.NoError(t, errMarshal)
 	require.Equal(t, []byte("\"76561197970669109\""), body)
+
+	type testGIDResp struct {
+		GID steamid.GID `json:"gid"`
+	}
+
+	var r testGIDResp
+
+	require.NoError(t, json.Unmarshal([]byte(`{"gid":"5124581515263221732"}`), &r))
+
+	expectedGID := steamid.NewGID(5124581515263221732)
+	require.Equal(t, expectedGID.Uint64(), r.GID.Uint64())
 }
 
 func TestResolveGID(t *testing.T) {
