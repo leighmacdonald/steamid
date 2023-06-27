@@ -16,6 +16,7 @@ package steamid
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/big"
 	"net/http"
@@ -155,8 +156,12 @@ func (c Collection) Contains(sid64 SID64) bool {
 
 // Valid ensures the value is at least large enough to be valid
 // No further validation is done.
-func (t *SID64) Valid() bool {
+func (t SID64) Valid() bool {
 	return t.Uint64() > BaseSID
+}
+
+func (t SID64) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%d\"", t.Int64())), nil
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to

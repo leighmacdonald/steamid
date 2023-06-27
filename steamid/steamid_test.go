@@ -104,19 +104,10 @@ func TestJSON(t *testing.T) {
 
 	expected := steamid.New(76561197970669109)
 	require.Equal(t, expected, out.Quoted, "Quoted value invalid")
-}
 
-func TestSID64UnmarshalJSON(t *testing.T) {
-	t.Parallel()
-
-	type tc struct {
-		SteamidString string `json:"steamid_string"`
-	}
-
-	var value tc
-
-	require.NoError(t, json.Unmarshal([]byte(`{"steamid_string":"76561197970669109"}`), &value))
-	require.Equal(t, "76561197970669109", value.SteamidString)
+	body, errMarshal := json.Marshal(expected)
+	require.NoError(t, errMarshal)
+	require.Equal(t, []byte("\"76561197970669109\""), body)
 }
 
 func TestResolveGID(t *testing.T) {
