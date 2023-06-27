@@ -124,12 +124,13 @@ func main() {
 	if err != nil {
 		fmt.Printf("Could not resolve: %v", err)
 	}
-	fmt.Printf("Resolved to: %d\n", resolvedSID64)
+	fmt.Printf("Resolved to: %d\n", resolvedSID64.Int64())
 
 	// Normal conversions like these do not require a key to be set
-	sid64, errConv := steamid.StringToSID64("76561197961279983")
-	if errConv != nil {
-		fmt.Printf("Could not convert string: %v", errConv)
+	sid64 := steamid.New("76561197961279983")
+	if !sid64.Valid() {
+		fmt.Printf("Invalid sid")
+		return
 	}
 	if sid64.Int64() != resolvedSID64.Int64() {
 		fmt.Printf("They dont match!")
@@ -147,8 +148,6 @@ func main() {
 The extra package also includes some helpful functions that are used to fetch & parse common data formats related
 to steam ids. These are not directly related to steamid conversions, but are a common use case.
 
-- Retrieve the [GetPlayerSummaries](https://developer.valvesoftware.com/wiki/Steam_Web_API#GetPlayerSummaries_.28v0002.29) 
-Steam WebAPI into a `extra.[]PlayerSummary` structure: `PlayerSummaries(ctx context.Context, steamIDs []steamid.SID64) ([]PlayerSummary, error)`
 - Parsing all status console command output: `extra.ParseStatus(status string, full bool) (Status, error)`
 - Parse just the status console steamids: `extra.SIDSFromStatus(text string) []steamid.SID64` 
 - Parse all steamids from a input `io.Reader` into a `io.Writer` using a custom format. This is the 

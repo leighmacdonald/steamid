@@ -1,8 +1,7 @@
 // Package steamid provides conversion to and from all steam ID formats.
 //
 // If you wish to resolve vanity names like https://steamcommunity.com/id/SQUIRRELLY into
-// steam id, or to GetPlayerSummaries requests against the WebAPI you must first obtain an
-// API key at https://steamcommunity.com/dev/apikey.
+// steam id you must first obtain an API key at https://steamcommunity.com/dev/apikey.
 //
 // You can then set it for the package to use:
 //
