@@ -131,6 +131,8 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 		}
 	case int64:
 		outputSid = SID64(sid)
+	case float64:
+		outputSid = SID64(int64(sid))
 	default:
 		return errors.Errorf("Invalid steam id type: %s", sid)
 	}
