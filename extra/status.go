@@ -2,27 +2,22 @@ package extra
 
 import (
 	"fmt"
-	"github.com/leighmacdonald/steamid/v2/steamid"
 	"net"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/leighmacdonald/steamid/v2/steamid"
 )
 
 var (
-	reStatusID         *regexp.Regexp
-	reStatusPlayerFull *regexp.Regexp
-	reStatusPlayer     *regexp.Regexp
+	reStatusID         = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
+	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
+	reStatusPlayer     = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
 )
 
-func init() {
-	reStatusID = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
-	reStatusPlayer = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
-	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
-}
-
-// Status represents the data from the `status` rcon/console command
+// Status represents the data from the `status` rcon/console command.
 type Status struct {
 	PlayersCount int
 	PlayersMax   int
@@ -34,7 +29,7 @@ type Status struct {
 	Players      []Player
 }
 
-// Player represents all the available data for a player in a `status` output table
+// Player represents all the available data for a player in a `status` output table.
 type Player struct {
 	UserID        int
 	Name          string
@@ -48,7 +43,7 @@ type Player struct {
 }
 
 // SIDSFromStatus will parse the output of the console command `status` and return a
-// set of SID64s representing all the players
+// set of SID64s representing all the players.
 func SIDSFromStatus(text string) []steamid.SID64 {
 	var ids []steamid.SID64
 	found := reStatusID.FindAllString(text, -1)
@@ -63,7 +58,7 @@ func SIDSFromStatus(text string) []steamid.SID64 {
 
 // ParseStatus will parse a status command output into a struct
 // If full is true, it will also parse the address/port of the player.
-// This only works for status commands via RCON/CLI
+// This only works for status commands via RCON/CLI.
 func ParseStatus(status string, full bool) (Status, error) {
 	var s Status
 	for _, line := range strings.Split(status, "\n") {

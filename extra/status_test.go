@@ -1,12 +1,15 @@
-package extra
+package extra_test
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/leighmacdonald/steamid/v2/extra"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseStatus(t *testing.T) {
-	s := `hostname: Uncletopia | US West 2
+	statusText := `hostname: Uncletopia | US West 2
 version : 5970214/24 5970214 secure
 udp/ip  : 23.239.22.163:27015  (public ip: 23.239.22.163)
 steamid : [G:1:3414356] (85568392923453780)
@@ -28,11 +31,11 @@ edicts  : 1717 used of 2048 max
 #   4259 "Greenwood RN"      [U:1:128375332]     24:51       67    0 active 1.2.136.246:27005
 #   4246 "Frank"             [U:1:166415783]      1:01:59   133    0 active 1.2.23.197:27005
 `
-	ids := SIDSFromStatus(s)
+	ids := extra.SIDSFromStatus(statusText)
 	require.NotNil(t, ids)
 	require.Equal(t, len(ids), 11)
 
-	st, err := ParseStatus(s, true)
+	st, err := extra.ParseStatus(statusText, true)
 	require.NoError(t, err)
 	require.Equal(t, "Uncletopia | US West 2", st.ServerName)
 	require.Equal(t, 32, st.PlayersMax)

@@ -1,16 +1,17 @@
 package cmd
 
 import (
-	"github.com/leighmacdonald/steamid/v2/extra"
-	"github.com/spf13/cobra"
 	"io"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/leighmacdonald/steamid/v2/extra"
+	"github.com/spf13/cobra"
 )
 
-// parseCmd represents the parse command
-var parseCmd = &cobra.Command{
+// parseCmd represents the parse command.
+var parseCmd = &cobra.Command{ //nolint:exhaustruct,gochecknoglobals
 	Use:   "parse",
 	Short: "Parse steam id's from an input file",
 	Long: `Parse steam id's from an input file. 
@@ -22,36 +23,36 @@ All formats are parsed from the file and duplicates are removed`,
 			writer io.Writer
 		)
 		inputFile := cmd.Flag("input").Value.String()
-		outputFile := cmd.Flag("output").Value.String()
+		outputFilePath := cmd.Flag("output").Value.String()
 		format := strings.ReplaceAll(
 			strings.ReplaceAll(cmd.Flag("format").Value.String(), "\\n", "\n"),
 			"\\r", "\r")
 		idType := strings.ToLower(cmd.Flag("type").Value.String())
 		if inputFile != "" {
-			i, err := os.Open(inputFile)
-			if err != nil {
-				log.Fatalf("Failed to open input file (%s): %v", inputFile, err)
+			openedInputFile, errOpen := os.Open(inputFile)
+			if errOpen != nil {
+				log.Fatalf("Failed to open input file (%s): %v", inputFile, errOpen)
 			}
 			defer func() {
-				if err := i.Close(); err != nil {
+				if err := openedInputFile.Close(); err != nil {
 					log.Printf("Failed to close input file")
 				}
 			}()
-			reader = i
+			reader = openedInputFile
 		} else {
 			reader = os.Stdin
 		}
-		if outputFile != "" {
-			o, err := os.Create(outputFile)
+		if outputFilePath != "" {
+			outFile, err := os.Create(outputFilePath)
 			if err != nil {
-				log.Fatalf("Failed to create output file (%s): %v", outputFile, err)
+				log.Fatalf("Failed to create output file (%s): %v", outputFilePath, err)
 			}
 			defer func() {
-				if err := o.Close(); err != nil {
+				if err := outFile.Close(); err != nil {
 					log.Printf("Failed to close input file")
 				}
 			}()
-			writer = o
+			writer = outFile
 		} else {
 			writer = os.Stdout
 		}

@@ -16,8 +16,6 @@ package steamid
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"math/big"
 	"net/http"
@@ -28,6 +26,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const (
@@ -36,40 +36,40 @@ const (
 )
 
 var (
-	httpClient    *http.Client
-	reGroupIDTags *regexp.Regexp
-	reGroupURL    *regexp.Regexp
-	apiKey        string
+	httpClient    *http.Client //nolint:gochecknoglobals
+	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
+	reGroupURL    = regexp.MustCompile(`steamcommunity.com/groups/(\S+)/?`)
+	apiKey        string //nolint:gochecknoglobals
 
-	// BuildVersion is replaced at compile time with the current tag or revision
-	BuildVersion = "master"
+	// BuildVersion is replaced at compile time with the current tag or revision.
+	BuildVersion = "master" //nolint:gochecknoglobals
 
-	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set
+	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set.
 	ErrNoAPIKey = errors.New("No steam web api key, to obtain one see: " +
 		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 )
 
-// AppID is the id associated with games/apps
+// AppID is the id associated with games/apps.
 type AppID uint32
 
 // SID represents a SteamID
-// STEAM_0:0:86173181
+// STEAM_0:0:86173181.
 type SID string
 
 // SID64 represents a Steam64
-// 76561198132612090
+// 76561198132612090.
 type SID64 uint64
 
 // SID32 represents a Steam32
-// 172346362
+// 172346362.
 type SID32 uint32
 
 // SID3 represents a Steam3
-// [U:1:172346362]
+// [U:1:172346362].
 type SID3 string
 
 // GID represents a GroupID (64bit)
-// 103582791453729676
+// 103582791453729676.
 type GID uint64 // 103582791453729676
 
 type Collection []SID64
@@ -91,17 +91,17 @@ func (c Collection) Contains(sid64 SID64) bool {
 	return false
 }
 
-// String renders the GID as an int64 string
+// String renders the GID as an int64 string.
 func (t GID) String() string {
 	return strconv.FormatInt(int64(t), 10)
 }
 
-// String renders the SID64 as an int64 string
+// String renders the SID64 as an int64 string.
 func (t *SID64) String() string {
 	return strconv.FormatInt(int64(*t), 10)
 }
 
-// Int64 casts the strings to a raw int64
+// Int64 casts the strings to a raw int64.
 func (t *SID64) Int64() int64 {
 	return int64(*t)
 }
@@ -113,7 +113,7 @@ func (t *SID64) Valid() bool {
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
-// do all steam id types by calling StringToSID64
+// do all steam id types by calling StringToSID64.
 func (t *SID64) UnmarshalJSON(data []byte) error {
 	var (
 		sidInput  any
@@ -143,6 +143,10 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func KeyConfigured() bool {
+	return apiKey != ""
+}
+
 // SetKey will set the package global steam webapi key used for some requests
 // Basic id conversion usage does not require this to be set.
 //
@@ -153,50 +157,56 @@ func SetKey(key string) error {
 		return errors.New("Tried to set invalid key, must be 32 chars or 0 to remove it")
 	}
 	apiKey = key
+
 	return nil
 }
 
-var idGen uint64 = 76561197960265728
+var idGen = uint64(76561197960265728) //nolint:gochecknoglobals
 
-// RandSID64 generates a unique random (numerically) valid steamid for testing
+// RandSID64 generates a unique random (numerically) valid steamid for testing.
 func RandSID64() SID64 {
 	return SID64(atomic.AddUint64(&idGen, 1))
 }
 
-// SID64FromString will attempt to convert a Steam64 formatted string into a SID64
+// SID64FromString will attempt to convert a Steam64 formatted string into a SID64.
 func SID64FromString(steamID string) (SID64, error) {
 	if steamID == "" {
 		return 0, errors.New("Cannot convert empty string")
 	}
+
 	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to parse integer")
 	}
+
 	sid := SID64(i)
 	if !sid.Valid() {
 		return 0, errors.Errorf("Invalid steam64 value")
 	}
+
 	return sid, nil
 }
 
-// GIDFromString will attempt to convert a properly formatted string to a GID
+// GIDFromString will attempt to convert a properly formatted string to a GID.
 func GIDFromString(steamID string) (GID, error) {
 	if steamID == "" {
 		return 0, errors.Errorf("Cannot convert empty string")
 	}
+
 	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to parse integer from string")
 	}
+
 	return GID(i), nil
 }
 
-// Valid checks if the valid meets the minimum requirements to be considered valid
+// Valid checks if the valid meets the minimum requirements to be considered valid.
 func (t GID) Valid() bool {
 	return t > 103582791429521408
 }
 
-// Int64 just cast the value ti a bare int64
+// Int64 just cast the value ti a bare int64.
 func (t GID) Int64() int64 {
 	return int64(t)
 }
@@ -321,7 +331,7 @@ func SID32ToSID3(steam32 SID32) SID3 {
 func SID3ToSID(steam3 SID3) SID {
 	parts := strings.Split(string(steam3), ":")
 	id32 := parts[len(parts)-1]
-	if len(id32) <= 0 {
+	if len(id32) == 0 {
 		return ""
 	}
 	if id32[len(id32)-1:] == "]" {
@@ -341,7 +351,7 @@ func SID3ToSID(steam3 SID3) SID {
 func SID3ToSID64(steam3 SID3) SID64 {
 	parts := strings.Split(string(steam3), ":")
 	id32 := parts[len(parts)-1]
-	if len(id32) <= 0 {
+	if len(id32) == 0 {
 		return SID64(0)
 	}
 	if id32[len(id32)-1:] == "]" {
@@ -361,7 +371,7 @@ func SID3ToSID64(steam3 SID3) SID64 {
 func SID3ToSID32(steam3 SID3) SID32 {
 	parts := strings.Split(string(steam3), ":")
 	id32 := parts[len(parts)-1]
-	if len(id32) <= 0 {
+	if len(id32) == 0 {
 		return SID32(0)
 	}
 	if id32[len(id32)-1:] == "]" {
@@ -375,14 +385,14 @@ func SID3ToSID32(steam3 SID3) SID32 {
 }
 
 // ResolveGID tries to resolve the GroupID from a group custom URL.
-// NOTE This may be prone to error due to not being a real api endpoint
+// NOTE This may be prone to error due to not being a real api endpoint.
 func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	m := reGroupURL.FindStringSubmatch(groupVanityURL)
 	if len(m) > 0 {
 		groupVanityURL = m[1]
 	}
 	u := "https://steamcommunity.com/groups/" + groupVanityURL + "/memberslistxml?xml=1"
-	req, errReq := http.NewRequestWithContext(ctx, "GET", u, nil)
+	req, errReq := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if errReq != nil {
 		return 0, errors.Wrap(errReq, "Failed to create request")
 	}
@@ -408,15 +418,22 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 	return GID(0), errors.Errorf("Failed to resolve GID: %s", content)
 }
 
+type vanityURLResponse struct {
+	Response struct {
+		SteamID string `json:"steamid"`
+		Success int    `json:"success"`
+	} `json:"response"`
+}
+
 // ResolveVanity attempts to resolve the underlying SID64 of a users vanity url name
 // This only accepts the name or last portion of the /id/ profile link
-// For https://steamcommunity.com/id/SQUIRRELLY the value is SQUIRRELLY
+// For https://steamcommunity.com/id/SQUIRRELLY the value is SQUIRRELLY.
 func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if apiKey == "" {
 		return 0, ErrNoAPIKey
 	}
 	u := urlVanity + url.Values{"key": {apiKey}, "vanityurl": {query}}.Encode()
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return 0, errors.Wrap(err, "Failed to create request")
 	}
@@ -431,22 +448,17 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	var vanityURLResponse struct {
-		Response struct {
-			Steamid string
-			Success int
-		}
-	}
-	if errUnmarshal := json.Unmarshal(content, &vanityURLResponse); err != nil {
+	var vanityResp vanityURLResponse
+	if errUnmarshal := json.Unmarshal(content, &vanityResp); err != nil {
 		return SID64(0), errors.Wrap(errUnmarshal, "Failed to decode json vanity response")
 	}
-	if vanityURLResponse.Response.Success != 1 {
-		return SID64(0), errors.Errorf("Invalid success code received: %d", vanityURLResponse.Response.Success)
+	if vanityResp.Response.Success != 1 {
+		return SID64(0), errors.Errorf("Invalid success code received: %d", vanityResp.Response.Success)
 	}
-	if len(vanityURLResponse.Response.Steamid) != 17 {
-		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityURLResponse.Response.Steamid)
+	if len(vanityResp.Response.SteamID) != 17 {
+		return SID64(0), errors.Errorf("Malformed steamid received: %s", vanityResp.Response.SteamID)
 	}
-	output, errParseInt := strconv.ParseInt(vanityURLResponse.Response.Steamid, 10, 64)
+	output, errParseInt := strconv.ParseInt(vanityResp.Response.SteamID, 10, 64)
 	if errParseInt != nil {
 		return SID64(0), errors.Wrap(err, "Failed to parse int from steamid received")
 	}
@@ -457,9 +469,9 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 //
 // If an error occurs or the SteamID was unable to be resolved from the query
 // then am error is returned.
-// TODO try and resolve len(17) && len(9) failed conversions as vanity
+// TODO try and resolve len(17) && len(9) failed conversions as vanity.
 func ResolveSID64(ctx context.Context, query string) (SID64, error) {
-	query = strings.Replace(query, " ", "", -1)
+	query = strings.ReplaceAll(query, " ", "")
 	if strings.Contains(query, "steamcommunity.com/profiles/") {
 		if string(query[len(query)-1]) == "/" {
 			query = query[0 : len(query)-1]
@@ -468,7 +480,7 @@ func ResolveSID64(ctx context.Context, query string) (SID64, error) {
 		if err != nil {
 			return SID64(0), errors.Wrapf(err, "Failed to parse int from query")
 		}
-		//query = strings.Replace(query, "/", "", -1)
+		// query = strings.Replace(query, "/", "", -1)
 		if len(strconv.FormatInt(output, 10)) != 17 {
 			return SID64(0), errors.Wrapf(err, "Invalid string length")
 		}
@@ -532,7 +544,7 @@ func StringToSID64(s string) (SID64, error) {
 	return 0, errors.Errorf("String provided did not match any know steam formats: %s", s)
 }
 
-// ParseString attempts to parse any strings of any known format within the body to a common SID64 format
+// ParseString attempts to parse any strings of any known format within the body to a common SID64 format.
 func ParseString(body string) []SID64 {
 	freSID := regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
 	freSID64 := regexp.MustCompile(`7656119\d{10}`)
@@ -568,12 +580,10 @@ func ParseString(body string) []SID64 {
 func init() {
 	if t, found := os.LookupEnv("STEAM_TOKEN"); found && t != "" {
 		if err := SetKey(t); err != nil {
-			fmt.Printf("(steamid) STEAM_TOKEN invalid: %v\n", err)
+			panic(err)
 		}
 	}
 	httpClient = &http.Client{
 		Timeout: time.Second * 10,
 	}
-	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
-	reGroupURL = regexp.MustCompile(`steamcommunity.com/groups/(\S+)/?`)
 }

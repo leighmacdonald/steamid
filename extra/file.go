@@ -3,11 +3,12 @@ package extra
 import (
 	"bufio"
 	"fmt"
-	"github.com/leighmacdonald/steamid/v2/steamid"
-	"github.com/pkg/errors"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/leighmacdonald/steamid/v2/steamid"
+	"github.com/pkg/errors"
 )
 
 // ParseReader attempt to find all types of steam ids in the data stream provided by the
@@ -18,7 +19,7 @@ import (
 // A formatting example to place each steam id on a newline: "%s\n"
 //
 // idType specifies what output id format to use when writing: steam, steam3, steam32, steam64 are
-// the valid choices
+// the valid choices.
 func ParseReader(input io.Reader, output io.Writer, format string, idType string) error {
 	switch idType {
 	case "steam":
