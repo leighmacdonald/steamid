@@ -33,8 +33,8 @@ import (
 const (
 	urlVanity    = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
 	baseIDString = "76561197960265728"
-	BaseSID      = uint64(76561197960265728)
-	BaseGID      = uint64(103582791429521408)
+	BaseSID      = int64(76561197960265728)
+	BaseGID      = int64(103582791429521408)
 )
 
 var (
@@ -62,44 +62,45 @@ type SID string
 
 // SID64 represents a Steam64
 // 76561198132612090.
-type SID64 struct {
-	big.Int
-}
+type SID64 string
 
 func New(value any) SID64 {
-	s := SID64{}
+	var s SID64
 
 	switch v := value.(type) {
 	case string:
 		parsedSid, errSid := StringToSID64(v)
 		if errSid != nil {
-			return SID64{}
+			return ""
 		}
 
-		s.SetInt64(parsedSid.Int64())
+		s = parsedSid
 	case uint64:
-		s.SetUint64(v)
+		s = SID64(fmt.Sprintf("%d", v))
 	case int:
-		s.SetInt64(int64(v))
+		s = SID64(fmt.Sprintf("%d", v))
 	case int64:
-		s.SetInt64(v)
-	case float64:
-		s.SetInt64(int64(v))
+		s = SID64(fmt.Sprintf("%d", v))
 	default:
-		s.SetInt64(0)
+		s = ""
 	}
 
 	return s
 }
 
-// Valid ensures the value is at least large enough to be valid
-// No further validation is done.
-func (t SID64) Valid() bool {
-	return t.Uint64() > BaseSID
+func (t SID64) Int64() int64 {
+	sid, _ := strconv.ParseInt(string(t), 10, 64)
+	return sid
 }
 
-func (t SID64) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%d\"", t.Int64())), nil
+func (t SID64) String() string {
+	return string(t)
+}
+
+// Valid ensures the value is at least large enough to be valid
+// No further validation is done.
+func (t *SID64) Valid() bool {
+	return t.Int64() > BaseSID
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
@@ -122,18 +123,9 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 			return errors.Wrap(err, "Failed to marshal string to SID64")
 		}
 
-		t.SetInt64(outputSid.Int64())
+		*t = outputSid
 	case int64:
-		t.SetInt64(sid)
-	case float64:
-		var z big.Int
-		_, ok := z.SetString(sidInput.(string), 10)
-
-		if !ok {
-			return ErrInvalidSID
-		}
-
-		t.SetUint64(z.Uint64())
+		*t = SID64(fmt.Sprintf("%d", sid))
 	default:
 		return ErrInvalidSID
 	}
@@ -179,7 +171,7 @@ func NewGID(value any) GID {
 
 // Valid checks if the valid meets the minimum requirements to be considered valid.
 func (t GID) Valid() bool {
-	return t.Uint64() > BaseGID
+	return t.Int64() > BaseGID
 }
 
 func (t GID) MarshalJSON() ([]byte, error) {
@@ -251,7 +243,7 @@ func (c Collection) ToStringSlice() []string {
 
 func (c Collection) Contains(sid64 SID64) bool {
 	for _, player := range c {
-		if player.Uint64() == sid64.Uint64() {
+		if player.Int64() == sid64.Int64() {
 			return true
 		}
 	}
@@ -288,17 +280,17 @@ func RandSID64() SID64 {
 // SID64FromString will attempt to convert a Steam64 formatted string into a SID64.
 func SID64FromString(steamID string) (SID64, error) {
 	if steamID == "" {
-		return SID64{}, errors.Wrap(ErrInvalidSID, "Cannot convert empty string")
+		return "", errors.Wrap(ErrInvalidSID, "Cannot convert empty string")
 	}
 
 	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
-		return SID64{}, errors.Wrap(err, "Failed to parse integer")
+		return "", errors.Wrap(err, "Failed to parse integer")
 	}
 
 	sid := New(i)
 	if !sid.Valid() {
-		return SID64{}, errors.Errorf("Invalid steam64 value")
+		return "", errors.Errorf("Invalid steam64 value")
 	}
 
 	return sid, nil
@@ -374,7 +366,7 @@ func SIDToSID3(steamID SID) SID3 {
 // An empty SteamID (string) is returned if the process was unsuccessful.
 func SID64ToSID(steam64 SID64) SID {
 	steamID := new(big.Int).SetInt64(steam64.Int64())
-	magic := new(big.Int).SetUint64(BaseSID)
+	magic := new(big.Int).SetInt64(BaseSID)
 	steamID = steamID.Sub(steamID, magic)
 	isServer := new(big.Int).And(steamID, big.NewInt(1))
 	steamID = steamID.Sub(steamID, isServer)
@@ -388,7 +380,7 @@ func SID64ToSID(steam64 SID64) SID {
 //
 // 0 is returned if the process was unsuccessful.
 func SID64ToSID32(steam64 SID64) SID32 {
-	steam64Str := strconv.FormatUint(steam64.Uint64(), 10)
+	steam64Str := strconv.FormatInt(steam64.Int64(), 10)
 	if len(steam64Str) < 3 {
 		return 0
 	}
@@ -431,7 +423,7 @@ func SID32ToSID(steam32 SID32) SID {
 func SID32ToSID64(steam32 SID32) SID64 {
 	steam64, err := strconv.ParseInt("765"+strconv.FormatInt(int64(steam32)+61197960265728, 10), 10, 64)
 	if err != nil {
-		return SID64{}
+		return ""
 	}
 
 	return New(steam64)
@@ -483,7 +475,7 @@ func SID3ToSID64(steam3 SID3) SID64 {
 	id32 := parts[len(parts)-1]
 
 	if len(id32) == 0 {
-		return SID64{}
+		return ""
 	}
 
 	if id32[len(id32)-1:] == "]" {
@@ -492,7 +484,7 @@ func SID3ToSID64(steam3 SID3) SID64 {
 
 	steam32, err := strconv.ParseUint(id32, 10, 64)
 	if err != nil {
-		return SID64{}
+		return ""
 	}
 
 	return SID32ToSID64(SID32(steam32))
@@ -583,24 +575,24 @@ type vanityURLResponse struct {
 // For https://steamcommunity.com/id/SQUIRRELLY the value is SQUIRRELLY.
 func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 	if apiKey == "" {
-		return SID64{}, ErrNoAPIKey
+		return "", ErrNoAPIKey
 	}
 
 	u := urlVanity + url.Values{"key": {apiKey}, "vanityurl": {query}}.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return SID64{}, errors.Wrap(err, "Failed to create request")
+		return "", errors.Wrap(err, "Failed to create request")
 	}
 
 	resp, errDo := httpClient.Do(req)
 	if errDo != nil {
-		return SID64{}, errors.Wrapf(errDo, "Failed to perform vanity lookup")
+		return "", errors.Wrapf(errDo, "Failed to perform vanity lookup")
 	}
 
 	content, errRead := io.ReadAll(resp.Body)
 	if errRead != nil {
-		return SID64{}, errors.Wrapf(errRead, "Failed to read vanity response body")
+		return "", errors.Wrapf(errRead, "Failed to read vanity response body")
 	}
 
 	defer func() {
@@ -609,26 +601,23 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 
 	var vanityResp vanityURLResponse
 	if errUnmarshal := json.Unmarshal(content, &vanityResp); err != nil {
-		return SID64{}, errors.Wrap(errUnmarshal, "Failed to decode json vanity response")
+		return "", errors.Wrap(errUnmarshal, "Failed to decode json vanity response")
 	}
 
 	if vanityResp.Response.Success != 1 {
-		return SID64{}, errors.Errorf("Invalid success code received: %d", vanityResp.Response.Success)
+		return "", errors.Errorf("Invalid success code received: %d", vanityResp.Response.Success)
 	}
 
 	if len(vanityResp.Response.SteamID) != 17 {
-		return SID64{}, errors.Errorf("Malformed steamid received: %s", vanityResp.Response.SteamID)
+		return "", errors.Errorf("Malformed steamid received: %s", vanityResp.Response.SteamID)
 	}
 
-	output, errParseInt := strconv.ParseInt(vanityResp.Response.SteamID, 10, 64)
+	_, errParseInt := strconv.ParseInt(vanityResp.Response.SteamID, 10, 64)
 	if errParseInt != nil {
-		return SID64{}, errors.Wrap(err, "Failed to parse int from steamid received")
+		return "", errors.Wrap(err, "Failed to parse int from steamid received")
 	}
 
-	sidOut := SID64{}
-	sidOut.SetInt64(output)
-
-	return sidOut, nil
+	return SID64(vanityResp.Response.SteamID), nil
 }
 
 // ResolveSID64 tries to retrieve a SteamID64 using a query (search).
@@ -645,12 +634,12 @@ func ResolveSID64(ctx context.Context, query string) (SID64, error) {
 
 		output, err := strconv.ParseInt(query[strings.Index(query, "steamcommunity.com/profiles/")+len("steamcommunity.com/profiles/"):], 10, 64)
 		if err != nil {
-			return SID64{}, errors.Wrapf(err, "Failed to parse int from query")
+			return "", errors.Wrapf(err, "Failed to parse int from query")
 		}
 
 		// query = strings.Replace(query, "/", "", -1)
 		if len(strconv.FormatInt(output, 10)) != 17 {
-			return SID64{}, errors.Wrapf(err, "Invalid string length")
+			return "", errors.Wrapf(err, "Invalid string length")
 		}
 
 		return New(output), nil
@@ -680,13 +669,11 @@ func StringToSID64(s string) (SID64, error) {
 	us := strings.ToUpper(s)
 
 	if len(s) == 17 {
-		i64, err := strconv.ParseUint(s, 10, 64)
+		_, err := strconv.ParseUint(s, 10, 64)
 		if err == nil {
-			v := SID64{}
-			v.SetUint64(i64)
-
+			v := SID64(s)
 			if !v.Valid() {
-				return SID64{}, errors.Errorf("String provided is not a valid Steam64 format: %s", s)
+				return v, errors.Errorf("String provided is not a valid Steam64 format: %s", s)
 			}
 
 			return v, nil
@@ -698,7 +685,7 @@ func StringToSID64(s string) (SID64, error) {
 		if err == nil {
 			v := SID32ToSID64(SID32(i32))
 			if !v.Valid() {
-				return SID64{}, errors.Errorf("String provided is not a valid Steam32 format: %s", s)
+				return v, errors.Errorf("String provided is not a valid Steam32 format: %s", s)
 			}
 
 			return v, nil
@@ -708,7 +695,7 @@ func StringToSID64(s string) (SID64, error) {
 	if strings.HasPrefix(us, "[U:") {
 		v := SID3ToSID64(SID3(us))
 		if !v.Valid() {
-			return SID64{}, errors.Errorf("String provided is not a valid Steam3 format: %s", s)
+			return v, errors.Errorf("String provided is not a valid Steam3 format: %s", s)
 		}
 
 		return v, nil
@@ -723,7 +710,7 @@ func StringToSID64(s string) (SID64, error) {
 		return v, nil
 	}
 
-	return SID64{}, errors.Errorf("String provided did not match any know steam formats: %s", s)
+	return "", errors.Errorf("String provided did not match any know steam formats: %s", s)
 }
 
 // ParseString attempts to parse any strings of any known format within the body to a common SID64 format.

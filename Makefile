@@ -36,7 +36,7 @@ test:
 fmt:
 	gofumpt -l -w .
 
-check: lint_golangci static
+check: fmt lint_golangci static
 
 lint_golangci:
 	@golangci-lint run --timeout 3m

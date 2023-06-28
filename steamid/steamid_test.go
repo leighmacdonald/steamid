@@ -29,11 +29,11 @@ func TestSID64FromString(t *testing.T) {
 
 	v2, err2 := steamid.SID64FromString("asdf")
 	require.Error(t, err2)
-	require.Equal(t, steamid.New(0), v2)
+	require.Equal(t, steamid.New(""), v2)
 
 	v3, err3 := steamid.SID64FromString("")
 	require.Error(t, err3)
-	require.Equal(t, steamid.New(0), v3)
+	require.Equal(t, steamid.New(""), v3)
 }
 
 func TestGIDFromString(t *testing.T) {
