@@ -33,7 +33,7 @@ func TestSID64FromString(t *testing.T) {
 
 	v3, err3 := steamid.SID64FromString("")
 	require.Error(t, err3)
-	require.Equal(t, steamid.New(""), v3)
+	require.Equal(t, steamid.New("0"), v3)
 }
 
 func TestGIDFromString(t *testing.T) {
@@ -45,11 +45,11 @@ func TestGIDFromString(t *testing.T) {
 
 	g1, err2 := steamid.GIDFromString("asdf")
 	require.Error(t, err2)
-	require.Equal(t, steamid.NewGID(0), g1)
+	require.Equal(t, steamid.NewGID(""), g1)
 
 	g2, err3 := steamid.GIDFromString("")
 	require.Error(t, err3)
-	require.Equal(t, steamid.NewGID(0), g2)
+	require.Equal(t, steamid.NewGID(""), g2)
 }
 
 func TestParseString(t *testing.T) {
@@ -117,7 +117,7 @@ func TestJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"gid":"5124581515263221732"}`), &r))
 
 	expectedGID := steamid.NewGID(5124581515263221732)
-	require.Equal(t, expectedGID.Uint64(), r.GID.Uint64())
+	require.Equal(t, expectedGID.Int64(), r.GID.Int64())
 }
 
 func TestResolveGID(t *testing.T) {

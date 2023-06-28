@@ -69,6 +69,10 @@ func New(value any) SID64 {
 
 	switch v := value.(type) {
 	case string:
+		if v == "0" {
+			return ""
+		}
+
 		parsedSid, errSid := StringToSID64(v)
 		if errSid != nil {
 			return ""
@@ -76,10 +80,22 @@ func New(value any) SID64 {
 
 		s = parsedSid
 	case uint64:
+		if v == 0 {
+			return ""
+		}
+
 		s = SID64(fmt.Sprintf("%d", v))
 	case int:
+		if v == 0 {
+			return ""
+		}
+
 		s = SID64(fmt.Sprintf("%d", v))
 	case int64:
+		if v == 0 {
+			return ""
+		}
+
 		s = SID64(fmt.Sprintf("%d", v))
 	default:
 		s = ""
@@ -139,31 +155,38 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 
 // GID represents a GroupID (64bit)
 // 103582791453729676.
-type GID struct {
-	big.Int
-}
+type GID string
 
 func NewGID(value any) GID {
-	s := GID{}
+	var s GID
 
 	switch v := value.(type) {
 	case string:
-		parsedGID, errGID := StringToSID64(v)
-		if errGID != nil {
-			return GID{}
+		if v == "0" {
+			return ""
 		}
 
-		s.SetInt64(parsedGID.Int64())
+		s = GID(v)
 	case uint64:
-		s.SetUint64(v)
+		if v == 0 {
+			return ""
+		}
+
+		s = GID(fmt.Sprintf("%d", v))
 	case int:
-		s.SetInt64(int64(v))
+		if v == 0 {
+			return ""
+		}
+
+		s = GID(fmt.Sprintf("%d", v))
 	case int64:
-		s.SetInt64(v)
-	case float64:
-		s.SetInt64(int64(v))
+		if v == 0 {
+			return ""
+		}
+
+		s = GID(fmt.Sprintf("%d", v))
 	default:
-		s.SetInt64(0)
+		s = ""
 	}
 
 	return s
@@ -174,47 +197,43 @@ func (t GID) Valid() bool {
 	return t.Int64() > BaseGID
 }
 
+func (t GID) Int64() int64 {
+	sid, _ := strconv.ParseInt(string(t), 10, 64)
+	return sid
+}
+
 func (t GID) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%d\"", t.Uint64())), nil
+	return []byte(fmt.Sprintf("\"%d\"", t.Int64())), nil
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
 // do all steam id types by calling StringToSID64.
 func (t *GID) UnmarshalJSON(data []byte) error {
 	var (
-		gidInput  any
-		outputGID GID
+		sidInput  any
+		outputSid GID
 		err       error
 	)
 
-	if err = json.Unmarshal(data, &gidInput); err != nil {
-		return errors.Wrapf(err, "failed to decode gid: %v", err)
+	if err = json.Unmarshal(data, &sidInput); err != nil {
+		return errors.Wrapf(err, "failed to decode steamid: %v", err)
 	}
 
-	switch gid := gidInput.(type) {
+	switch sid := sidInput.(type) {
 	case string:
-		outputGID, err = GIDFromString(gid)
+		outputSid, err = GIDFromString(sid)
 		if err != nil {
 			return errors.Wrap(err, "Failed to marshal string to SID64")
 		}
 
-		t.SetInt64(outputGID.Int64())
+		*t = outputSid
 	case int64:
-		t.SetInt64(gid)
-	case float64:
-		var z big.Int
-		_, ok := z.SetString(gidInput.(string), 10)
-
-		if !ok {
-			return ErrInvalidGID
-		}
-
-		t.SetUint64(z.Uint64())
+		*t = GID(fmt.Sprintf("%d", sid))
 	default:
 		return ErrInvalidGID
 	}
 
-	if !outputGID.Valid() {
+	if !outputSid.Valid() {
 		return ErrInvalidGID
 	}
 
@@ -299,19 +318,17 @@ func SID64FromString(steamID string) (SID64, error) {
 // GIDFromString will attempt to convert a properly formatted string to a GID.
 func GIDFromString(gidString string) (GID, error) {
 	if gidString == "" {
-		return GID{}, errors.Errorf("Cannot convert empty string")
+		return "", errors.Errorf("Cannot convert empty string")
 	}
 
-	i, err := strconv.ParseInt(gidString, 10, 64)
+	_, err := strconv.ParseInt(gidString, 10, 64)
 	if err != nil {
-		return GID{}, errors.Wrap(err, "Failed to parse integer from string")
+		return "", errors.Wrap(err, "Failed to parse integer from string")
 	}
 
-	g := GID{}
-	g.SetInt64(i)
-
+	g := GID(gidString)
 	if !g.Valid() {
-		return GID{}, ErrInvalidSID
+		return "", ErrInvalidSID
 	}
 
 	return g, nil
@@ -526,17 +543,17 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 
 	req, errReq := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if errReq != nil {
-		return GID{}, errors.Wrap(errReq, "Failed to create request")
+		return "", errors.Wrap(errReq, "Failed to create request")
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return GID{}, errors.Wrapf(err, "Failed to fetch GID from host")
+		return "", errors.Wrapf(err, "Failed to fetch GID from host")
 	}
 
 	content, errRead := io.ReadAll(resp.Body)
 	if errRead != nil {
-		return GID{}, errors.Wrapf(errRead, "Failed to read response body")
+		return "", errors.Wrapf(errRead, "Failed to read response body")
 	}
 
 	defer func() {
@@ -545,22 +562,20 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 
 	groupIDTags := reGroupIDTags.FindSubmatch(content)
 	if len(groupIDTags) >= 2 {
-		groupID, errUint := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
+		_, errUint := strconv.ParseUint(string(groupIDTags[1]), 10, 64)
 		if errUint != nil {
-			return GID{}, errors.Wrapf(errUint, "Failed to convert GID to int")
+			return "", errors.Wrapf(errUint, "Failed to convert GID to int")
 		}
 
-		g := GID{}
-		g.SetUint64(groupID)
-
+		g := GID(groupIDTags[1])
 		if !g.Valid() {
-			return GID{}, ErrInvalidSID
+			return "", ErrInvalidSID
 		}
 
 		return g, nil
 	}
 
-	return GID{}, errors.Errorf("Failed to resolve GID: %s", content)
+	return "", errors.Errorf("Failed to resolve GID: %s", content)
 }
 
 type vanityURLResponse struct {
