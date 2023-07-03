@@ -61,6 +61,9 @@ type AppID uint32
 type SID string
 
 // SID64 represents a Steam64
+// This is using a string as the base type mainly to make interop with javascript/json simpler.
+// There is no JSON bigint type, so when used with js the Number type gets represented as a float
+// and will result in an invalid/truncated id value when decoded back to a native int64 form.
 // 76561198132612090.
 type SID64 string
 
@@ -104,23 +107,44 @@ func New(value any) SID64 {
 	return s
 }
 
+//goland:noinspection GoMixedReceiverTypes
 func (t SID64) Int64() int64 {
 	sid, _ := strconv.ParseInt(string(t), 10, 64)
 	return sid
 }
 
+//goland:noinspection GoMixedReceiverTypes
 func (t SID64) String() string {
 	return string(t)
 }
 
 // Valid ensures the value is at least large enough to be valid
 // No further validation is done.
+//
+//goland:noinspection GoMixedReceiverTypes
 func (t *SID64) Valid() bool {
 	return t.Int64() > BaseSID
 }
 
+//goland:noinspection GoMixedReceiverTypes
+func (t SID64) SID() SID {
+	return SID64ToSID(t)
+}
+
+//goland:noinspection GoMixedReceiverTypes
+func (t SID64) SID32() SID32 {
+	return SID64ToSID32(t)
+}
+
+//goland:noinspection GoMixedReceiverTypes
+func (t SID64) SID3() SID3 {
+	return SID64ToSID3(t)
+}
+
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
 // do all steam id types by calling StringToSID64.
+//
+//goland:noinspection GoMixedReceiverTypes
 func (t *SID64) UnmarshalJSON(data []byte) error {
 	var (
 		sidInput  any
@@ -193,21 +217,27 @@ func NewGID(value any) GID {
 }
 
 // Valid checks if the valid meets the minimum requirements to be considered valid.
+//
+//goland:noinspection GoMixedReceiverTypes
 func (t GID) Valid() bool {
 	return t.Int64() > BaseGID
 }
 
+//goland:noinspection GoMixedReceiverTypes
 func (t GID) Int64() int64 {
 	sid, _ := strconv.ParseInt(string(t), 10, 64)
 	return sid
 }
 
+//goland:noinspection GoMixedReceiverTypes
 func (t GID) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%d\"", t.Int64())), nil
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
 // do all steam id types by calling StringToSID64.
+//
+//goland:noinspection GoMixedReceiverTypes
 func (t *GID) UnmarshalJSON(data []byte) error {
 	var (
 		sidInput  any
