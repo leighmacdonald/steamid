@@ -72,7 +72,10 @@ STEAM_0:0:86173181
 func TestConversions(t *testing.T) {
 	t.Parallel()
 
-	// id := 76561197970669109
+	sid := steamid.New(76561199127271263)
+	require.Equal(t, steamid.SID3("[U:1:1167005535]"), sid.SID3())
+	require.Equal(t, steamid.SID("STEAM_0:1:583502767"), sid.SID())
+	require.Equal(t, steamid.SID32(1167005535), sid.SID32())
 	require.Equal(t, steamid.SID64ToSID3(steamid.New(76561199127271263)), steamid.SID3("[U:1:1167005535]"))
 	require.Equal(t, steamid.SID3ToSID32("[U:1:172346362]"), steamid.SID32(172346362))
 	require.Equal(t, steamid.SID3ToSID64("[U:1:172346362]"), steamid.New(76561198132612090))

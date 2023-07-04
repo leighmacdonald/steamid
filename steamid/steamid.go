@@ -61,6 +61,9 @@ type AppID uint32
 type SID string
 
 // SID64 represents a Steam64
+//
+// ((Universe << 56) | (Account Type << 52) | (Instance << 32) | Account ID)
+//
 // This is using a string as the base type mainly to make interop with javascript/json simpler.
 // There is no JSON bigint type, so when used with js the Number type gets represented as a float
 // and will result in an invalid/truncated id value when decoded back to a native int64 form.
@@ -319,7 +322,7 @@ func SetKey(key string) error {
 	return nil
 }
 
-var idGen = uint64(76561197960265728) //nolint:gochecknoglobals
+var idGen = uint64(BaseSID) //nolint:gochecknoglobals
 
 // RandSID64 generates a unique random (numerically) valid steamid for testing.
 func RandSID64() SID64 {
