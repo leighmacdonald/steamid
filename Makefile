@@ -50,6 +50,7 @@ check_deps:
 	go install mvdan.cc/gofumpt@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
 	go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
+	go install github.com/goreleaser/goreleaser@latest
 
 dev_db:
 	docker compose -f docker-compose-dev.yml up --force-recreate -V postgres

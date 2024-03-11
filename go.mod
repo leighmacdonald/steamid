@@ -3,7 +3,6 @@ module github.com/leighmacdonald/steamid/v3
 go 1.22
 
 require (
-	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
 )

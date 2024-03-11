@@ -2,13 +2,20 @@ package extra
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
 	"github.com/leighmacdonald/steamid/v3/steamid"
-	"github.com/pkg/errors"
+)
+
+var (
+	ErrIDType    = errors.New("invalid sid type")
+	ErrReadInput = errors.New("error while reading input")
+	ErrWrite     = errors.New("failed to write to output file")
+	ErrFlush     = errors.New("failed to flush contents")
 )
 
 // ParseReader attempt to find all types of steam ids in the data stream provided by the
@@ -27,7 +34,7 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 	case "steam32":
 	case "steam64":
 	default:
-		return errors.Errorf("invalid id type: %s", idType)
+		return fmt.Errorf("%w: %s", ErrIDType, idType)
 	}
 
 	writer := bufio.NewWriter(output)
@@ -39,7 +46,7 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 	}
 
 	if err := reader.Err(); err != nil {
-		return errors.Errorf("Error reading input: %v", err)
+		return errors.Join(err, ErrReadInput)
 	}
 
 	ids64 := steamid.ParseString(strings.Join(lines, ""))
@@ -60,11 +67,11 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 
 		_, errWrite := writer.WriteString(fmt.Sprintf(format, value))
 		if errWrite != nil {
-			return errors.Wrapf(errWrite, "Error writing id to output")
+			return errors.Join(errWrite, ErrWrite)
 		}
 
 		if errFlush := writer.Flush(); errFlush != nil {
-			return errors.Wrapf(errFlush, "Failed to flush remaining data")
+			return errors.Join(errFlush, ErrFlush)
 		}
 	}
 
