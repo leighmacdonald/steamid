@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/leighmacdonald/steamid/v3/steamid"
-
 	"github.com/stretchr/testify/require"
 )
 

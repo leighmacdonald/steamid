@@ -103,7 +103,7 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-    - wsl
+    #- wsl
     #- zerologlint
   # Disable specific linter
   # https://golangci-lint.run/usage/linters/#disabled-by-default

@@ -34,6 +34,7 @@ test:
 	$(GO_TEST) -v ./...
 
 fmt:
+	gci write . --skip-generated -s standard -s default
 	gofumpt -l -w .
 
 check: fmt lint_golangci static
@@ -45,8 +46,10 @@ static:
 	@staticcheck -go 1.20 ./...
 
 check_deps:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.53.3
-	go install honnef.co/go/tools/cmd/staticcheck@latest
+	go install github.com/daixiang0/gci@latest
+	go install mvdan.cc/gofumpt@latest
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
+	go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
 
 dev_db:
 	docker compose -f docker-compose-dev.yml up --force-recreate -V postgres
