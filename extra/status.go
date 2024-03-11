@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/leighmacdonald/steamid/v3/steamid"
+	"github.com/pkg/errors"
 )
 
 var (
