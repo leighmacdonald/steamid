@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,9 +31,12 @@ import (
 
 const (
 	urlVanity    = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
-	baseIDString = "76561197960265728"
-	BaseSID      = int64(76561197960265728)
-	BaseGID      = int64(103582791429521408)
+	BaseGID      = uint64(103582791429521408)
+	BaseSID      = uint64(76561197960265728)
+	InstanceMask = 0x000FFFFF
+	ClanMask     = (InstanceMask + 1) >> 1
+	Lobby        = (InstanceMask + 1) >> 2
+	MMSLobby     = (InstanceMask + 1) >> 3
 )
 
 var (
@@ -43,8 +46,9 @@ var (
 	apiKey        string //nolint:gochecknoglobals
 
 	// BuildVersion is replaced at compile time with the current tag or revision.
-	BuildVersion = "master" //nolint:gochecknoglobals
-
+	BuildVersion = "master"     //nolint:gochecknoglobals
+	reSteam2     *regexp.Regexp //nolint:gochecknoglobals
+	reSteam3     *regexp.Regexp //nolint:gochecknoglobals
 )
 
 var (
@@ -58,7 +62,7 @@ var (
 	ErrInvalidGID         = errors.New("invalid gid")
 	ErrDecodeSID          = errors.New("could not decode steamid value")
 	ErrDecodeGID          = errors.New("could not decode gid value")
-	ErrUnmarshalStringSID = errors.New("failed to unmarshal string to SID64")
+	ErrUnmarshalStringSID = errors.New("failed to unmarshal string to SteamID")
 	ErrUnmarshalStringGID = errors.New("failed to unmarshal string to GID64")
 	ErrRequestCreate      = errors.New("failed to create request")
 	ErrInvalidStatusCode  = errors.New("invalid status code")
@@ -76,7 +80,177 @@ type AppID uint32
 // STEAM_0:0:86173181.
 type SID string
 
-// SID64 represents a Steam64
+// Universe describes the 6 known steam universe
+// Universes 0 to 3 are common, 4 Dev not exist in all games, 5 RC is removed out from some source files "// no such universe anymore".
+type Universe int
+
+const (
+	UniverseInvalid Universe = iota
+	UniversePublic
+	UniverseBeta
+	UniverseInternal
+	UniverseDev
+	UniverseRC
+)
+
+func (u Universe) String() string {
+	switch u {
+	case UniversePublic:
+		return "Public"
+	case UniverseBeta:
+		return "Beta"
+	case UniverseInternal:
+		return "Internal"
+	case UniverseDev:
+		return "Dev"
+	case UniverseRC:
+		return "RC"
+	case UniverseInvalid:
+		fallthrough
+	default:
+		return "Individual/Unspecified"
+	}
+}
+
+// AccountType is split into 10 types for a Steam account, of which 4 can be created today.
+// Users of an "Individual" account are temporarily referred to as having a "Pending" account, which has a
+// textual representation of "STEAM_ID_PENDING" until their account credentials are verified with Steam's
+// authentication servers, a process usually complete by the time a server is fully connected to. Accounts of the
+// type "Invalid" have a textual representation of "UNKNOWN" and are used for bots and accounts which do not belong
+// to another class.
+//
+// Multi-user chats use the "T" character. Steam group (clan) chats use the "c" character. Steam lobbies
+// use Chat IDs and use the "L" character.
+type AccountType int
+
+const (
+	AccountTypeInvalid AccountType = iota
+	AccountTypeIndividual
+	AccountTypeMultiSeat
+	AccountTypeGameServer
+	AccountTypeAnonGameServer
+	AccountTypePending
+	AccountTypeContentServer
+	AccountTypeClan
+	AccountTypeChat
+	AccountTypeP2PSuperSeeder
+	AccountTypeAnonUser
+)
+
+func (ac AccountType) String() string {
+	switch ac {
+	case AccountTypeIndividual:
+		return "Individual"
+	case AccountTypeMultiSeat:
+		return "MultiSeat"
+	case AccountTypeGameServer:
+		return "Game Server"
+	case AccountTypeAnonGameServer:
+		return "Anon Game Server"
+	case AccountTypePending:
+		return "Pending"
+	case AccountTypeContentServer:
+		return "Content Server"
+	case AccountTypeClan:
+		return "Clan"
+	case AccountTypeChat:
+		return "Chat"
+	case AccountTypeP2PSuperSeeder:
+		return "P2P SuperSeeder"
+	case AccountTypeAnonUser:
+		return "Anon User"
+	case AccountTypeInvalid:
+		fallthrough
+	default:
+		return "Invalid"
+	}
+}
+
+func (ac AccountType) Letter() string {
+	switch ac {
+	case AccountTypeIndividual:
+		return "U"
+	case AccountTypeMultiSeat:
+		return "M"
+	case AccountTypeGameServer:
+		return "G"
+	case AccountTypeAnonGameServer:
+		return "A"
+	case AccountTypePending:
+		return "P"
+	case AccountTypeContentServer:
+		return "C"
+	case AccountTypeClan:
+		return "g"
+	case AccountTypeChat:
+		return "T"
+	case AccountTypeP2PSuperSeeder:
+		return ""
+	case AccountTypeAnonUser:
+		return "a"
+	case AccountTypeInvalid:
+		fallthrough
+	default:
+		return "I"
+	}
+}
+
+func accountTypeFromLetter(l string) AccountType {
+	switch l {
+	case "U":
+		return AccountTypeIndividual
+	case "M":
+		return AccountTypeMultiSeat
+	case "G":
+		return AccountTypeGameServer
+	case "A":
+		return AccountTypeAnonGameServer
+	case "P":
+		return AccountTypePending
+	case "C":
+		return AccountTypeContentServer
+	case "g":
+		return AccountTypeClan
+	case "T":
+		return AccountTypeChat
+	case "":
+		return AccountTypeP2PSuperSeeder
+	case "a":
+		return AccountTypeAnonUser
+	case "I":
+		return AccountTypeInvalid
+	case "i":
+		fallthrough
+	default:
+		return AccountTypeInvalid
+	}
+}
+
+type Instance int
+
+const (
+	InstanceAll Instance = iota
+	InstanceDesktop
+	InstanceConsole
+	InstanceWeb
+)
+
+func (i Instance) String() string {
+	switch i {
+	case InstanceAll:
+		return "All"
+	case InstanceDesktop:
+		return "Desktop"
+	case InstanceConsole:
+		return "Console"
+	case InstanceWeb:
+		return "Web"
+	default:
+		return ""
+	}
+}
+
+// SteamID represents a Steam64
 //
 // ((Universe << 56) | (Account Type << 52) | (Instance << 32) | Account ID)
 //
@@ -84,92 +258,242 @@ type SID string
 // There is no JSON bigint type, so when used with js the Number type gets represented as a float
 // and will result in an invalid/truncated id value when decoded back to a native int64 form.
 // 76561198132612090.
-type SID64 string
-
-func New(value any) SID64 {
-	switch v := value.(type) {
-	case string:
-		if v == "0" {
-			return ""
-		}
-
-		parsedSid, errSid := StringToSID64(v)
-		if errSid != nil {
-			return ""
-		}
-
-		return parsedSid
-	case uint64:
-		if v == 0 {
-			return ""
-		}
-
-		return SID64(fmt.Sprintf("%d", v))
-	case int:
-		if v == 0 {
-			return ""
-		}
-
-		return SID64(fmt.Sprintf("%d", v))
-	case int64:
-		if v == 0 {
-			return ""
-		}
-
-		return SID64(fmt.Sprintf("%d", v))
-	case float64:
-		if v == 0 {
-			return ""
-		}
-
-		return SID64(fmt.Sprintf("%d", int64(v)))
-	default:
-		return ""
-	}
+type SteamID struct {
+	AccountID   SID32
+	Instance    Instance
+	AccountType AccountType
+	Universe    Universe
 }
 
-//goland:noinspection GoMixedReceiverTypes
-func (t SID64) Int64() int64 {
-	sid, _ := strconv.ParseInt(string(t), 10, 64)
+func New(input any) SteamID {
+	sid := SteamID{
+		AccountID:   0,
+		Instance:    InstanceAll,
+		AccountType: AccountTypeInvalid,
+		Universe:    UniverseInvalid,
+	}
+
+	var value string
+
+	switch v := input.(type) {
+	case string:
+		if v == "0" {
+			return sid
+		}
+		value = v
+	case uint64:
+		if v == 0 {
+			return sid
+		}
+
+		value = fmt.Sprintf("%d", v)
+	case int:
+		if v == 0 {
+			return sid
+		}
+
+		value = fmt.Sprintf("%d", v)
+	case int64:
+		if v == 0 {
+			return sid
+		}
+
+		value = fmt.Sprintf("%d", v)
+	case float64:
+		if v == 0 {
+			return sid
+		}
+
+		value = fmt.Sprintf("%d", int64(v))
+	default:
+		return sid
+	}
+
+	if value == "" {
+		return sid
+	}
+
+	// steam2
+	if match := reSteam2.FindStringSubmatch(value); match != nil {
+		universeInt, errUniverseInt := strconv.ParseUint(match[1], 10, 64)
+		if errUniverseInt != nil {
+			return sid
+		}
+
+		intVal, errIntVal := strconv.ParseUint(match[2], 10, 64)
+		if errIntVal != nil {
+			return sid
+		}
+
+		accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
+		if errAccountIDInt != nil {
+			return sid
+		}
+
+		if universeInt > 0 {
+			sid.Universe = Universe(universeInt)
+		} else {
+			sid.Universe = UniversePublic
+		}
+
+		sid.AccountType = AccountTypeIndividual
+		sid.Instance = InstanceDesktop
+		sid.AccountID = SID32((accountIDInt * 2) + intVal)
+
+		return sid
+	}
+
+	// steam3
+	if match := reSteam3.FindStringSubmatch(value); match != nil {
+		ir := match[1]
+		universeInt, errUniverseInt := strconv.ParseUint(match[2], 10, 64)
+		if errUniverseInt != nil {
+			return sid
+		}
+
+		accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
+		if errAccountIDInt != nil {
+			return sid
+		}
+
+		sid.Universe = Universe(universeInt)
+		sid.AccountID = SID32(accountIDInt)
+		switch ir {
+		case "U":
+			sid.Instance = InstanceDesktop
+		case "A":
+			sid.Instance = InstanceAll
+		case "C":
+			sid.Instance = InstanceConsole
+		case "W":
+			sid.Instance = InstanceWeb
+		}
+
+		switch ir {
+		case "c":
+			sid.Instance |= ClanMask
+			sid.AccountType = AccountTypeChat
+		case "L":
+			sid.Instance |= Lobby
+		default:
+			sid.AccountType = accountTypeFromLetter(ir)
+		}
+		return sid
+	}
+
+	// uint64 version
+	intVal, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return sid
+	}
+
+	if intVal < BaseSID {
+		// 172346362 -> 76561198132612090
+		sid.Universe = UniversePublic
+		sid.AccountType = AccountTypeIndividual
+		sid.Instance = InstanceDesktop
+		sid.AccountID = SID32(intVal)
+	} else {
+		// 76561198132612090 -> 76561198132612090
+		sid.AccountID = SID32((intVal & 0xFFFFFFFF) >> 0)
+		sid.Instance = Instance(intVal >> 32 & 0xFFFFF)
+		sid.AccountType = AccountType(intVal >> 52 & 0xF)
+		sid.Universe = Universe(intVal >> 56)
+	}
+
 	return sid
 }
 
-//goland:noinspection GoMixedReceiverTypes
-func (t SID64) String() string {
-	return string(t)
+func (t *SteamID) Equal(id SteamID) bool {
+	return t.AccountID == id.AccountID && t.AccountType == id.AccountType && t.Instance == id.Instance && t.Universe == id.Universe
+}
+
+func (t *SteamID) String() string {
+	return fmt.Sprintf("%d", t.Int64())
+}
+
+func (t *SteamID) Int64() int64 {
+	return int64((uint64(t.Universe << 56)) | (uint64(t.AccountType) << 52) | (uint64(t.Instance) << 32) | uint64(t.AccountID))
 }
 
 // Valid ensures the value is at least large enough to be valid
 // No further validation is done.
+func (t *SteamID) Valid() bool {
+	if t.AccountType <= AccountTypeInvalid || t.AccountType > AccountTypeAnonUser {
+		return false
+	}
+
+	if t.Universe <= UniverseInvalid || t.Universe > UniverseDev {
+		return false
+	}
+
+	if t.AccountType == AccountTypeIndividual && (t.AccountID == 0 || t.Instance > InstanceWeb) {
+		return false
+	}
+
+	if t.AccountType == AccountTypeClan && (t.AccountID == 0 || t.Instance != InstanceAll) {
+		return false
+	}
+
+	if t.AccountType == AccountTypeGameServer && t.AccountID == 0 {
+		return false
+	}
+
+	return true
+}
+
+// Steam converts a given SID64 to a SteamID2 format.
+// e.g. 76561198132612090 -> STEAM_0:0:86173181
 //
-//goland:noinspection GoMixedReceiverTypes
-func (t *SID64) Valid() bool {
-	return t.Int64() > BaseSID
+// An empty SteamID (string) is returned if the process was unsuccessful.
+func (t *SteamID) Steam(format bool) SID {
+	if t.AccountType != AccountTypeIndividual {
+		return ""
+	}
+
+	uni := t.Universe
+	if !format && uni == 1 {
+		uni = 0
+	}
+
+	return SID(fmt.Sprintf("STEAM_%d:%d:%d", uni, t.AccountID&1, int64(math.Floor(float64(t.AccountID)/2))))
 }
 
-//goland:noinspection GoMixedReceiverTypes
-func (t SID64) SID() SID {
-	return SID64ToSID(t)
+// Steam3 converts a given id to a SID3 format.
+// e.g. 76561198132612090 -> [U:1:172346362].
+func (t *SteamID) Steam3() SID3 {
+	char := t.AccountType.Letter()
+	if t.Instance&ClanMask > 0 {
+		char = "c"
+	} else if t.Instance&Lobby > 0 {
+		char = "L"
+	}
+
+	doInstance := t.AccountType == AccountTypeAnonGameServer ||
+		t.AccountType == AccountTypeMultiSeat ||
+		(t.AccountType == AccountTypeIndividual && t.Instance != InstanceDesktop)
+
+	if !doInstance {
+		return SID3(fmt.Sprintf("[%s:%d:%d]", char, t.Universe, t.AccountID))
+	} else {
+		return SID3(fmt.Sprintf("[%s:%d:%d:%d]", char, t.Universe, t.AccountID, t.Instance))
+	}
 }
 
-//goland:noinspection GoMixedReceiverTypes
-func (t SID64) SID32() SID32 {
-	return SID64ToSID32(t)
-}
+// func (t *SteamID) IsLobby() bool {
+//	return t.AccountType == AccountTypeChat && (int(t.Instance)&Lobby) || (int(t.Instance)&MMSLobby))
+// }
 
-//goland:noinspection GoMixedReceiverTypes
-func (t SID64) SID3() SID3 {
-	return SID64ToSID3(t)
+func (t *SteamID) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + t.String() + "\""), nil
 }
 
 // UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
 // do all steam id types by calling StringToSID64.
-//
-//goland:noinspection GoMixedReceiverTypes
-func (t *SID64) UnmarshalJSON(data []byte) error {
+func (t *SteamID) UnmarshalJSON(data []byte) error {
 	var (
 		sidInput  any
-		outputSid SID64
+		outputSid SteamID
 		err       error
 	)
 
@@ -179,113 +503,20 @@ func (t *SID64) UnmarshalJSON(data []byte) error {
 
 	switch sid := sidInput.(type) {
 	case string:
-		outputSid, err = StringToSID64(sid)
-		if err != nil {
+		outputSid = New(sid)
+		if !outputSid.Valid() {
 			return errors.Join(err, ErrUnmarshalStringSID)
 		}
 
 		*t = outputSid
 	case int64:
-		*t = SID64(fmt.Sprintf("%d", sid))
+		*t = New(fmt.Sprintf("%d", sid))
 	default:
 		return ErrInvalidSID
 	}
 
 	if !outputSid.Valid() {
 		return ErrInvalidSID
-	}
-
-	return nil
-}
-
-// GID represents a GroupID (64bit)
-// 103582791453729676.
-type GID string
-
-func NewGID(value any) GID {
-	var s GID
-
-	switch v := value.(type) {
-	case string:
-		if v == "0" {
-			return ""
-		}
-
-		s = GID(v)
-	case uint64:
-		if v == 0 {
-			return ""
-		}
-
-		s = GID(fmt.Sprintf("%d", v))
-	case int:
-		if v == 0 {
-			return ""
-		}
-
-		s = GID(fmt.Sprintf("%d", v))
-	case int64:
-		if v == 0 {
-			return ""
-		}
-
-		s = GID(fmt.Sprintf("%d", v))
-	default:
-		s = ""
-	}
-
-	return s
-}
-
-// Valid checks if the valid meets the minimum requirements to be considered valid.
-//
-//goland:noinspection GoMixedReceiverTypes
-func (t GID) Valid() bool {
-	return t.Int64() > BaseGID
-}
-
-//goland:noinspection GoMixedReceiverTypes
-func (t GID) Int64() int64 {
-	sid, _ := strconv.ParseInt(string(t), 10, 64)
-	return sid
-}
-
-//goland:noinspection GoMixedReceiverTypes
-func (t GID) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%d\"", t.Int64())), nil
-}
-
-// UnmarshalJSON implements the Unmarshaler interface for steam ids. It will attempt to
-// do all steam id types by calling StringToSID64.
-//
-//goland:noinspection GoMixedReceiverTypes
-func (t *GID) UnmarshalJSON(data []byte) error {
-	var (
-		sidInput  any
-		outputSid GID
-		err       error
-	)
-
-	if err = json.Unmarshal(data, &sidInput); err != nil {
-		return errors.Join(err, ErrDecodeGID)
-	}
-
-	switch sid := sidInput.(type) {
-	case string:
-		outputSid, err = GIDFromString(sid)
-		if err != nil {
-			return errors.Join(err, ErrUnmarshalStringGID)
-		}
-
-		*t = outputSid
-	case int64:
-		*t = GID(fmt.Sprintf("%d", sid))
-	default:
-		return ErrInvalidGID
-	}
-
-	if !outputSid.Valid() {
-		return ErrInvalidGID
 	}
 
 	return nil
@@ -299,7 +530,7 @@ type SID32 uint32
 // [U:1:172346362].
 type SID3 string
 
-type Collection []SID64
+type Collection []SteamID
 
 func (c Collection) ToStringSlice() []string {
 	var s []string
@@ -311,7 +542,7 @@ func (c Collection) ToStringSlice() []string {
 	return s
 }
 
-func (c Collection) Contains(sid64 SID64) bool {
+func (c Collection) Contains(sid64 SteamID) bool {
 	for _, player := range c {
 		if player.Int64() == sid64.Int64() {
 			return true
@@ -340,251 +571,43 @@ func SetKey(key string) error {
 	return nil
 }
 
-var idGen = uint64(BaseSID) //nolint:gochecknoglobals
+var idGen = uint64(0) //nolint:gochecknoglobals
 
 // RandSID64 generates a unique random (numerically) valid steamid for testing.
-func RandSID64() SID64 {
-	return New(atomic.AddUint64(&idGen, 1))
+func RandSID64() SteamID {
+	id := atomic.AddUint64(&idGen, 1)
+
+	sid := New("")
+	sid.Universe = UniversePublic
+	sid.AccountType = AccountTypeIndividual
+	sid.Instance = InstanceDesktop
+	sid.AccountID = SID32(id)
+
+	return sid
 }
 
 // SID64FromString will attempt to convert a Steam64 formatted string into a SID64.
-func SID64FromString(steamID string) (SID64, error) {
+func SID64FromString(steamID string) (SteamID, error) {
 	if steamID == "" {
-		return "", errors.Join(ErrInvalidSID, ErrEmptyString)
+		return SteamID{}, errors.Join(ErrInvalidSID, ErrEmptyString)
 	}
 
 	i, err := strconv.ParseInt(steamID, 10, 64)
 	if err != nil {
-		return "", errors.Join(err, ErrSIDConvertInt64)
+		return SteamID{}, errors.Join(err, ErrSIDConvertInt64)
 	}
 
 	sid := New(i)
 	if !sid.Valid() {
-		return "", ErrInvalidSID
+		return SteamID{}, ErrInvalidSID
 	}
 
 	return sid, nil
 }
 
-// GIDFromString will attempt to convert a properly formatted string to a GID.
-func GIDFromString(gidString string) (GID, error) {
-	if gidString == "" {
-		return "", ErrEmptyString
-	}
-
-	_, err := strconv.ParseInt(gidString, 10, 64)
-	if err != nil {
-		return "", errors.Join(err, ErrSIDConvertInt64)
-	}
-
-	g := GID(gidString)
-	if !g.Valid() {
-		return "", ErrInvalidSID
-	}
-
-	return g, nil
-}
-
-// SIDToSID64 converts a given SteamID to a SID64.
-// e.g. STEAM_0:0:86173181 -> 76561198132612090
-//
-// 0 is returned if the process was unsuccessful.
-func SIDToSID64(steamID SID) SID64 {
-	idParts := strings.Split(string(steamID), ":")
-	magic, _ := new(big.Int).SetString(baseIDString, 10)
-	steam64, _ := new(big.Int).SetString(idParts[2], 10)
-	steam64 = steam64.Mul(steam64, big.NewInt(2))
-	steam64 = steam64.Add(steam64, magic)
-	auth, _ := new(big.Int).SetString(idParts[1], 10)
-
-	return New(steam64.Add(steam64, auth).Int64())
-}
-
-// SIDToSID32 converts a given SteamID to a SID32.
-// e.g. STEAM_0:0:86173181 -> 172346362
-//
-// 0 is returned if the process was unsuccessful.
-func SIDToSID32(steamID SID) SID32 {
-	return SID64ToSID32(SIDToSID64(steamID))
-}
-
-// SIDToSID3 converts a given SteamID to a SID3.
-// e.g. STEAM_0:0:86173181 -> [U:1:172346362]
-//
-// An empty SID3 (string) is returned if the process was unsuccessful.
-func SIDToSID3(steamID SID) SID3 {
-	steamIDParts := strings.Split(string(steamID), ":")
-	steamLastPart, errLast := strconv.ParseUint(steamIDParts[len(steamIDParts)-1], 10, 64)
-
-	if errLast != nil {
-		return ""
-	}
-
-	steamMidPart, errMid := strconv.ParseUint(steamIDParts[len(steamIDParts)-2], 10, 64)
-	if errMid != nil {
-		return ""
-	}
-
-	return SID3("[U:1:" + strconv.FormatUint((steamLastPart*2)+steamMidPart, 10) + "]")
-}
-
-// SID64ToSID converts a given SID64 to a SteamID.
-// e.g. 76561198132612090 -> STEAM_0:0:86173181
-//
-// An empty SteamID (string) is returned if the process was unsuccessful.
-func SID64ToSID(steam64 SID64) SID {
-	steamID := new(big.Int).SetInt64(steam64.Int64())
-	magic := new(big.Int).SetInt64(BaseSID)
-	steamID = steamID.Sub(steamID, magic)
-	isServer := new(big.Int).And(steamID, big.NewInt(1))
-	steamID = steamID.Sub(steamID, isServer)
-	steamID = steamID.Div(steamID, big.NewInt(2))
-
-	return SID("STEAM_0:" + isServer.String() + ":" + steamID.String())
-}
-
-// SID64ToSID32 converts a given SID64 to a SID32.
-// e.g. 76561198132612090 -> 172346362
-//
-// 0 is returned if the process was unsuccessful.
-func SID64ToSID32(steam64 SID64) SID32 {
-	steam64Str := strconv.FormatInt(steam64.Int64(), 10)
-	if len(steam64Str) < 3 {
-		return 0
-	}
-
-	steam32, err := strconv.ParseInt(steam64Str[3:], 10, 64)
-	if err != nil {
-		return 0
-	}
-
-	return SID32(steam32 - 61197960265728)
-}
-
-// SID64ToSID3 converts a given SID64 to a SID3.
-// e.g. 76561198132612090 -> [U:1:172346362]
-//
-// An empty SID3 (string) is returned if the process was unsuccessful.
-func SID64ToSID3(steam64 SID64) SID3 {
-	steamID := SID64ToSID(steam64)
-	empty := New(0)
-
-	if string(steamID) == empty.String() {
-		return ""
-	}
-
-	return SIDToSID3(steamID)
-}
-
-// SID32ToSID converts a given SID32 to a SteamID.
-// eg. 172346362 -> STEAM_0:0:86173181
-//
-// An empty SteamID (string) is returned if the process was unsuccessful.
-func SID32ToSID(steam32 SID32) SID {
-	return SID64ToSID(SID32ToSID64(steam32))
-}
-
-// SID32ToSID64 converts a given SID32 to a SID64.
-// e.g. 172346362 -> 76561198132612090
-//
-// 0 is returned if the process was unsuccessful.
-func SID32ToSID64(steam32 SID32) SID64 {
-	steam64, err := strconv.ParseInt("765"+strconv.FormatInt(int64(steam32)+61197960265728, 10), 10, 64)
-	if err != nil {
-		return ""
-	}
-
-	return New(steam64)
-}
-
-// SID32ToSID3 converts a given SID32 to a SID3.
-// eg. 172346362 -> [U:1:172346362]
-//
-// An empty SID3 (string) is returned if the process was unsuccessful.
-func SID32ToSID3(steam32 SID32) SID3 {
-	steamID := SID32ToSID(steam32)
-	if steamID == SID32ToSID(0) {
-		return ""
-	}
-
-	return SIDToSID3(steamID)
-}
-
-// SID3ToSID converts a given SID3 to a SteamID.
-// eg. [U:1:172346362] -> STEAM_0:0:86173181
-//
-// An empty SteamID (string) is returned if the process was unsuccessful.
-func SID3ToSID(steam3 SID3) SID {
-	parts := strings.Split(string(steam3), ":")
-	id32 := parts[len(parts)-1]
-
-	if len(id32) == 0 {
-		return ""
-	}
-
-	if id32[len(id32)-1:] == "]" {
-		id32 = id32[:len(id32)-1]
-	}
-
-	steam32, err := strconv.ParseUint(id32, 10, 64)
-	if err != nil {
-		return ""
-	}
-
-	return SID32ToSID(SID32(steam32))
-}
-
-// SID3ToSID64 converts a given SID3 to a SID64.
-// eg. [U:1:172346362] -> 76561198132612090
-//
-// 0 is returned if the process was unsuccessful.
-func SID3ToSID64(steam3 SID3) SID64 {
-	parts := strings.Split(string(steam3), ":")
-	id32 := parts[len(parts)-1]
-
-	if len(id32) == 0 {
-		return ""
-	}
-
-	if id32[len(id32)-1:] == "]" {
-		id32 = id32[:len(id32)-1]
-	}
-
-	steam32, err := strconv.ParseUint(id32, 10, 64)
-	if err != nil {
-		return ""
-	}
-
-	return SID32ToSID64(SID32(steam32))
-}
-
-// SID3ToSID32 converts a given SID3 to a SID64.
-// eg. [U:1:172346362] -> 172346362
-//
-// 0 is returned if the process was unsuccessful.
-func SID3ToSID32(steam3 SID3) SID32 {
-	parts := strings.Split(string(steam3), ":")
-	id32 := parts[len(parts)-1]
-
-	if len(id32) == 0 {
-		return SID32(0)
-	}
-
-	if id32[len(id32)-1:] == "]" {
-		id32 = id32[:len(id32)-1]
-	}
-
-	steam32, err := strconv.ParseUint(id32, 10, 64)
-	if err != nil {
-		return SID32(0)
-	}
-
-	return SID32(steam32)
-}
-
 // ResolveGID tries to resolve the GroupID from a group custom URL.
 // NOTE This may be prone to error due to not being a real api endpoint.
-func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
+func ResolveGID(ctx context.Context, groupVanityURL string) (SteamID, error) {
 	m := reGroupURL.FindStringSubmatch(groupVanityURL)
 	if len(m) > 0 {
 		groupVanityURL = m[1]
@@ -594,61 +617,61 @@ func ResolveGID(ctx context.Context, groupVanityURL string) (GID, error) {
 
 	req, errReq := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if errReq != nil {
-		return "", errors.Join(errReq, ErrRequestCreate)
+		return SteamID{}, errors.Join(errReq, ErrRequestCreate)
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", errors.Join(err, ErrResponsePerform)
+		return SteamID{}, errors.Join(err, ErrResponsePerform)
 	}
 
 	content, errRead := io.ReadAll(resp.Body)
 	if errRead != nil {
-		return "", errors.Join(errRead, ErrResponseBody)
+		return SteamID{}, errors.Join(errRead, ErrResponseBody)
 	}
 
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
-	groupIDTags := reGroupIDTags.FindSubmatch(content)
+	groupIDTags := reGroupIDTags.FindStringSubmatch(string(content))
 	if len(groupIDTags) >= 2 {
-		gid := GID(groupIDTags[1])
-		if !gid.Valid() {
-			return "", ErrInvalidGID
+		gid := New(groupIDTags[1])
+		if !gid.Valid() || gid.AccountType != AccountTypeClan {
+			return SteamID{}, ErrInvalidGID
 		}
 
 		return gid, nil
 	}
 
-	return "", ErrResolveVanityGID
+	return SteamID{}, ErrResolveVanityGID
 }
 
 type vanityURLResponse struct {
 	Response struct {
-		SteamID SID64 `json:"steamid"`
-		Success int   `json:"success"`
+		SteamID SteamID `json:"steamid"`
+		Success int     `json:"success"`
 	} `json:"response"`
 }
 
 // ResolveVanity attempts to resolve the underlying SID64 of a users vanity url name
 // This only accepts the name or last portion of the /id/ profile link
 // For https://steamcommunity.com/id/SQUIRRELLY the value is SQUIRRELLY.
-func ResolveVanity(ctx context.Context, query string) (SID64, error) {
+func ResolveVanity(ctx context.Context, query string) (SteamID, error) {
 	if apiKey == "" {
-		return "", ErrNoAPIKey
+		return SteamID{}, ErrNoAPIKey
 	}
 
 	u := urlVanity + url.Values{"key": {apiKey}, "vanityurl": {query}}.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return "", errors.Join(err, ErrRequestCreate)
+		return SteamID{}, errors.Join(err, ErrRequestCreate)
 	}
 
 	resp, errDo := httpClient.Do(req)
 	if errDo != nil {
-		return "", errors.Join(errDo, ErrResponsePerform)
+		return SteamID{}, errors.Join(errDo, ErrResponsePerform)
 	}
 
 	defer func() {
@@ -657,15 +680,15 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 
 	var vanityResp vanityURLResponse
 	if errUnmarshal := json.NewDecoder(resp.Body).Decode(&vanityResp); err != nil {
-		return "", errors.Join(errUnmarshal, ErrDecodeSID)
+		return SteamID{}, errors.Join(errUnmarshal, ErrDecodeSID)
 	}
 
 	if vanityResp.Response.Success != 1 {
-		return "", fmt.Errorf("%w: %d", ErrInvalidStatusCode, vanityResp.Response.Success)
+		return SteamID{}, fmt.Errorf("%w: %d", ErrInvalidStatusCode, vanityResp.Response.Success)
 	}
 
 	if !vanityResp.Response.SteamID.Valid() {
-		return "", fmt.Errorf("%w: %s", ErrInvalidSID, vanityResp.Response.SteamID)
+		return SteamID{}, fmt.Errorf("%w: %s", ErrInvalidSID, vanityResp.Response.SteamID.String())
 	}
 
 	return vanityResp.Response.SteamID, nil
@@ -676,7 +699,7 @@ func ResolveVanity(ctx context.Context, query string) (SID64, error) {
 // If an error occurs or the SteamID was unable to be resolved from the query
 // then am error is returned.
 // TODO try and resolve len(17) && len(9) failed conversions as vanity.
-func ResolveSID64(ctx context.Context, query string) (SID64, error) {
+func ResolveSID64(ctx context.Context, query string) (SteamID, error) {
 	query = strings.ReplaceAll(query, " ", "")
 	if strings.Contains(query, "steamcommunity.com/profiles/") {
 		if string(query[len(query)-1]) == "/" {
@@ -685,12 +708,12 @@ func ResolveSID64(ctx context.Context, query string) (SID64, error) {
 
 		output, err := strconv.ParseInt(query[strings.Index(query, "steamcommunity.com/profiles/")+len("steamcommunity.com/profiles/"):], 10, 64)
 		if err != nil {
-			return "", errors.Join(err, ErrInvalidQueryValue)
+			return SteamID{}, errors.Join(err, ErrInvalidQueryValue)
 		}
 
 		// query = strings.Replace(query, "/", "", -1)
 		if len(strconv.FormatInt(output, 10)) != 17 {
-			return "", errors.Join(err, ErrInvalidQueryLen)
+			return SteamID{}, errors.Join(err, ErrInvalidQueryLen)
 		}
 
 		return New(output), nil
@@ -702,70 +725,16 @@ func ResolveSID64(ctx context.Context, query string) (SID64, error) {
 		return ResolveVanity(ctx, query)
 	}
 
-	s, err := StringToSID64(query)
-	if err == nil {
+	s := New(query)
+	if s.Valid() {
 		return s, nil
 	}
 
 	return ResolveVanity(ctx, query)
 }
 
-// StringToSID64 will attempt to convert a string containing some format of steam id into
-// a SID64 automatically, picking the appropriate matching conversion to make.
-//
-//	This will not resolve vanity ids. Use ResolveSID64 if you also want to attempt
-//
-// to resolve it as a vanity url in addition.
-func StringToSID64(s string) (SID64, error) {
-	us := strings.ToUpper(s)
-
-	if len(s) == 17 {
-		_, err := strconv.ParseUint(s, 10, 64)
-		if err == nil {
-			v := SID64(s)
-			if !v.Valid() {
-				return v, fmt.Errorf("%w: %s", ErrInvalidSID, s)
-			}
-
-			return v, nil
-		}
-	}
-
-	if len(s) == 9 {
-		i32, err := strconv.ParseUint(s, 10, 32)
-		if err == nil {
-			v := SID32ToSID64(SID32(i32))
-			if !v.Valid() {
-				return v, fmt.Errorf("%w: %s", ErrInvalidSID, s)
-			}
-
-			return v, nil
-		}
-	}
-
-	if strings.HasPrefix(us, "[U:") {
-		v := SID3ToSID64(SID3(us))
-		if !v.Valid() {
-			return v, fmt.Errorf("%w: %s", ErrInvalidSID, s)
-		}
-
-		return v, nil
-	}
-
-	if strings.HasPrefix(us, "STEAM_") {
-		v := SIDToSID64(SID(us))
-		if !v.Valid() {
-			return v, fmt.Errorf("%w: %s", ErrInvalidSID, s)
-		}
-
-		return v, nil
-	}
-
-	return "", fmt.Errorf("%w: %s", ErrInvalidSID, s)
-}
-
 // ParseString attempts to parse any strings of any known format within the body to a common SID64 format.
-func ParseString(body string) []SID64 {
+func ParseString(body string) []SteamID {
 	freSID := regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
 	freSID64 := regexp.MustCompile(`7656119\d{10}`)
 	freSID3 := regexp.MustCompile(`\[U:1:\d+]`)
@@ -795,15 +764,33 @@ func ParseString(body string) []SID64 {
 		found[sid.Int64()] = true
 	}
 
-	var ids []SID64
+	var ids []SteamID
 	for k := range found {
 		ids = append(ids, New(k))
 	}
 
+	var uniq []SteamID
+	for _, id := range ids {
+		isFound := false
+		for _, uid := range uniq {
+			if uid.Int64() == id.Int64() {
+				isFound = true
+				break
+			}
+		}
+
+		if isFound {
+			continue
+		}
+
+		uniq = append(uniq, id)
+	}
 	return ids
 }
 
 func init() {
+	reSteam2 = regexp.MustCompile(`^STEAM_([0-5]):([0-1]):([0-9]+)$`)
+	reSteam3 = regexp.MustCompile(`^\[([a-zA-Z]):([0-5]):([0-9]+)(:[0-9]+)?]$`)
 	if t, found := os.LookupEnv("STEAM_TOKEN"); found && t != "" {
 		if err := SetKey(t); err != nil {
 			panic(err)
