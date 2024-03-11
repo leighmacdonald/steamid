@@ -71,8 +71,6 @@ type SID string
 type SID64 string
 
 func New(value any) SID64 {
-	var s SID64
-
 	switch v := value.(type) {
 	case string:
 		if v == "0" {
@@ -84,30 +82,34 @@ func New(value any) SID64 {
 			return ""
 		}
 
-		s = parsedSid
+		return parsedSid
 	case uint64:
 		if v == 0 {
 			return ""
 		}
 
-		s = SID64(fmt.Sprintf("%d", v))
+		return SID64(fmt.Sprintf("%d", v))
 	case int:
 		if v == 0 {
 			return ""
 		}
 
-		s = SID64(fmt.Sprintf("%d", v))
+		return SID64(fmt.Sprintf("%d", v))
 	case int64:
 		if v == 0 {
 			return ""
 		}
 
-		s = SID64(fmt.Sprintf("%d", v))
-	default:
-		s = ""
-	}
+		return SID64(fmt.Sprintf("%d", v))
+	case float64:
+		if v == 0 {
+			return ""
+		}
 
-	return s
+		return SID64(fmt.Sprintf("%d", int64(v)))
+	default:
+		return ""
+	}
 }
 
 //goland:noinspection GoMixedReceiverTypes
