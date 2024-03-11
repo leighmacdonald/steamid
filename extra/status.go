@@ -51,7 +51,7 @@ type Status struct {
 type Player struct {
 	UserID        int
 	Name          string
-	SID           steamid.SID64
+	SID           steamid.SteamID
 	ConnectedTime time.Duration
 	Ping          int
 	Loss          int
@@ -64,8 +64,8 @@ type Player struct {
 
 // set of SID64s representing all the players.
 
-func SIDSFromStatus(text string) []steamid.SID64 {
-	var ids []steamid.SID64
+func SIDSFromStatus(text string) []steamid.SteamID {
+	var ids []steamid.SteamID
 
 	found := reStatusID.FindAllString(text, -1)
 
@@ -74,7 +74,7 @@ func SIDSFromStatus(text string) []steamid.SID64 {
 	}
 
 	for _, strID := range found {
-		ids = append(ids, steamid.SID3ToSID64(steamid.SID3(strID)))
+		ids = append(ids, steamid.New(strID))
 	}
 
 	return ids
@@ -184,7 +184,7 @@ func ParseStatus(status string, full bool) (Status, error) {
 				p := Player{
 					UserID:        int(userID),
 					Name:          m[2],
-					SID:           steamid.SID3ToSID64(steamid.SID3(m[3])),
+					SID:           steamid.New(m[3]),
 					ConnectedTime: dur,
 					Ping:          int(ping),
 					Loss:          int(loss),
