@@ -47,6 +47,8 @@ var (
 
 	// BuildVersion is replaced at compile time with the current tag or revision.
 	BuildVersion = "master"     //nolint:gochecknoglobals
+	BuildCommit  = ""           //nolint:gochecknoglobals
+	BuildDate    = ""           //nolint:gochecknoglobals
 	reSteam2     *regexp.Regexp //nolint:gochecknoglobals
 	reSteam3     *regexp.Regexp //nolint:gochecknoglobals
 )
