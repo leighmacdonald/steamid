@@ -46,11 +46,11 @@ static:
 	@staticcheck -go 1.20 ./...
 
 check_deps:
-	go install github.com/daixiang0/gci@latest
-	go install mvdan.cc/gofumpt@latest
+	go install github.com/daixiang0/gci@v0.13.0
+	go install mvdan.cc/gofumpt@v0.6.0
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
 	go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
-	go install github.com/goreleaser/goreleaser@latest
+	go install github.com/goreleaser/goreleaser@v1.24.0
 
 dev_db:
 	docker compose -f docker-compose-dev.yml up --force-recreate -V postgres
