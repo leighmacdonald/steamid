@@ -9,11 +9,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func printAllConversions(sid steamid.SteamID) {
-	fmt.Printf(`Steam:   %s
-Steam3:  %s
-Steam32: %d
-Steam64: %d`, sid.Steam(false), sid.Steam3(), sid.AccountID, sid.Int64()) //nolint:forbidigo
+func printAllConversions(sid steamid.SteamID, verbose bool) {
+	suffix := ""
+	if verbose {
+		suffix = fmt.Sprintf(`Instance:     %s
+Account Type: %s
+Universe:     %s`, sid.Instance.String(), sid.AccountType.String(), sid.Universe.String())
+	}
+	fmt.Printf(`Steam:        %s
+Steam3:       %s
+Steam32:      %d
+Steam64:      %d
+%s`, sid.Steam(false), sid.Steam3(), sid.AccountID, sid.Int64(), suffix) //nolint:forbidigo
+
 }
 
 // convertCmd parses and prints out the steam id formats for the input steamid.
@@ -33,6 +41,11 @@ All formats are parsed from the file and duplicates are removed`,
 				os.Exit(1)
 			}
 
+			verbose := false
+
+			if verbFlag := cmd.Flag("verbose"); verbFlag != nil {
+				verbose = verbFlag.Changed
+			}
 			idType := ""
 
 			if typeVal := cmd.Flag("format"); typeVal != nil {
@@ -41,7 +54,7 @@ All formats are parsed from the file and duplicates are removed`,
 
 			switch idType {
 			case "":
-				printAllConversions(sid)
+				printAllConversions(sid, verbose)
 			case "steam":
 				fallthrough
 			case "steam2":
@@ -64,7 +77,7 @@ All formats are parsed from the file and duplicates are removed`,
 
 func init() {
 	rootCmd.AddCommand(convertCmd)
-
+	convertCmd.Flags().BoolP("verbose", "v", false, "Show verbose steam details")
 	convertCmd.Flags().StringP("format", "f", "",
 		"Output format to use. Applied to each ID. (steam, steam3, steam32, steam64)")
 }
