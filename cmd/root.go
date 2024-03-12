@@ -3,9 +3,9 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/leighmacdonald/steamid/v4/steamid"
 	"os"
 
+	"github.com/leighmacdonald/steamid/v4/steamid"
 	"github.com/spf13/cobra"
 )
 

@@ -34,7 +34,7 @@ test:
 	$(GO_TEST) -v ./...
 
 fmt:
-	gci write . --skip-generated -s standard -s default
+	#gci write . --skip-generated -s standard -s default
 	gofumpt -l -w .
 
 check: fmt lint_golangci static

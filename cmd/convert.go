@@ -21,7 +21,6 @@ Steam3:       %s
 Steam32:      %d
 Steam64:      %d
 %s`, sid.Steam(false), sid.Steam3(), sid.AccountID, sid.Int64(), suffix) //nolint:forbidigo
-
 }
 
 // convertCmd parses and prints out the steam id formats for the input steamid.
