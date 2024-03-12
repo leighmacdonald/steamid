@@ -9,15 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/leighmacdonald/steamid/v3/steamid"
+	"github.com/leighmacdonald/steamid/v4/steamid"
 )
 
 var (
-	reStatusID = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
-
+	reStatusID         = regexp.MustCompile(`"(.+?)"\s+(\[U:\d+:\d+]|STEAM_\d:\d:\d+)`)
 	reStatusPlayerFull = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(.+?)\s+(\d+)\s+(\d+)\s+(.+?)\s(.+?):(.+?)$`)
-
-	reStatusPlayer = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
+	reStatusPlayer     = regexp.MustCompile(`^#\s+(\d+)\s+"(.+?)"\s+(\[U:\d:\d+])\s+(\d+:\d+)\s+(\d+)\s+(\d+)\s+(.+?)$`)
 )
 
 var (
@@ -47,7 +45,6 @@ type Status struct {
 }
 
 // Player represents all the available data for a player in a `status` output table.
-
 type Player struct {
 	UserID        int
 	Name          string
@@ -61,9 +58,7 @@ type Player struct {
 }
 
 // SIDSFromStatus will parse the output of the console command `status` and return a
-
 // set of SID64s representing all the players.
-
 func SIDSFromStatus(text string) []steamid.SteamID {
 	var ids []steamid.SteamID
 
@@ -81,11 +76,8 @@ func SIDSFromStatus(text string) []steamid.SteamID {
 }
 
 // ParseStatus will parse a status command output into a struct
-
 // If full is true, it will also parse the address/port of the player.
-
 // This only works for status commands via RCON/CLI.
-
 func ParseStatus(status string, full bool) (Status, error) {
 	var s Status
 

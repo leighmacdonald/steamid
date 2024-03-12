@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/leighmacdonald/steamid/v3/steamid"
+	"github.com/leighmacdonald/steamid/v4/steamid"
 )
 
 var (
@@ -21,23 +21,14 @@ var (
 )
 
 // ParseReader attempt to find all types of steam ids in the data stream provided by the
-
 // input reader. It will write the output of what it finds to the output writer applying the
-
 // formatting strings to each value. The formatting string takes the same formatting as the
-
 // standards fmt.SprintF() and expects one %s token.
-
 //
-
 // A formatting example to place each steam id on a newline: "%s\n"
-
 //
-
 // idType specifies what output id format to use when writing: steam, steam3, steam32, steam64 are
-
 // the valid choices.
-
 func ParseReader(input io.Reader, output io.Writer, format string, idType string) error {
 	switch idType {
 	case "steam":
