@@ -27,6 +27,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -519,6 +521,21 @@ func (t *SteamID) UnmarshalJSON(data []byte) error {
 		return ErrInvalidSID
 	}
 
+	return nil
+}
+
+// MarshalText implements encoding.TextMarshaler which is used by the yaml package for marshalling
+func (t *SteamID) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for steam ids.
+func (t *SteamID) UnmarshalYAML(node *yaml.Node) error {
+	sid := New(node.Value)
+	if !sid.Valid() {
+		return ErrInvalidSID
+	}
+	*t = sid
 	return nil
 }
 

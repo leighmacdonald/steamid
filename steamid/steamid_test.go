@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/leighmacdonald/steamid/v4/steamid"
 	"github.com/stretchr/testify/require"
 )
@@ -120,6 +122,34 @@ func TestJSON(t *testing.T) {
 
 	var r testGIDResp
 	require.NoError(t, json.Unmarshal([]byte(`{"gid":"103582791441572968"}`), &r))
+	expectedGID := steamid.New(103582791441572968)
+
+	require.Equal(t, expectedGID.Int64(), r.GID.Int64())
+}
+
+func TestYAML(t *testing.T) {
+	t.Parallel()
+
+	type testFormats struct {
+		Quoted steamid.SteamID `yaml:"quoted"`
+	}
+
+	var out testFormats
+	require.NoError(t, yaml.Unmarshal([]byte(`{"quoted":"76561197970669109"}`), &out))
+
+	expected := steamid.New(76561197970669109)
+	require.Equal(t, expected, out.Quoted, "Quoted value invalid")
+
+	body, errMarshal := yaml.Marshal(&expected)
+	require.NoError(t, errMarshal)
+	require.Equal(t, []byte("\"76561197970669109\"\n"), body)
+
+	type testGIDResp struct {
+		GID steamid.SteamID `json:"gid"`
+	}
+
+	var r testGIDResp
+	require.NoError(t, yaml.Unmarshal([]byte(`{"gid":"103582791441572968"}`), &r))
 	expectedGID := steamid.New(103582791441572968)
 
 	require.Equal(t, expectedGID.Int64(), r.GID.Int64())
