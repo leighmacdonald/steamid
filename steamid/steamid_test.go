@@ -3,6 +3,7 @@ package steamid_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -17,6 +18,19 @@ func TestRandSID64(t *testing.T) {
 
 	sid := steamid.RandSID64()
 	require.True(t, sid.Valid())
+}
+
+func TestNew(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []any{
+		int64(84745574), int32(84745574), 84745574, "STEAM_0:0:42372787",
+		"[U:1:84745574]", 76561198045011302, uint64(76561198045011302), "76561198045011302",
+	} {
+		sid32 := steamid.New(value)
+		require.True(t, sid32.Valid(), fmt.Sprintf("invalid value: %v", value))
+		require.Equal(t, int64(76561198045011302), sid32.Int64())
+	}
 }
 
 func TestSID64FromString(t *testing.T) {
@@ -50,33 +64,6 @@ func TestGIDFromString(t *testing.T) {
 
 	g2 := steamid.New("")
 	require.False(t, g2.Valid())
-}
-
-func TestParseString(t *testing.T) {
-	t.Parallel()
-
-	testBody := `# userid name                uniqueid            connected ping loss state
-
-#      2 "WolfXine"          [U:1:166779318]     15:22       85    0 active
-
-#      3 "mdaniels5746"      [U:1:361821288]     15:22       87    0 active
-
-#     28 "KRGonzales"        [U:1:875620767]     00:29       76   10 active
-
-#      4 "juan.martinez2009" [U:1:79002518]      15:22       72    0 active
-
-[U:1:172346362]STEAM_0:0:86173182[U:1:172346342]
-
-STEAM_0:0:86173181
-
-76561198132612090
-
-76561198084134025
-
-`
-
-	ids := steamid.ParseString(testBody)
-	require.Len(t, ids, 8) // 2 duplicated
 }
 
 func TestConversions(t *testing.T) {
@@ -179,27 +166,27 @@ func TestResolveSID(t *testing.T) {
 		return
 	}
 
-	sid1, err := steamid.ResolveSID64(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
+	sid1, err := steamid.Resolve(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
 	require.NoError(t, err)
 	require.Equal(t, sid1, steamid.New(76561197961279983))
 
-	sid2, err2 := steamid.ResolveSID64(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
+	sid2, err2 := steamid.Resolve(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
 	require.Error(t, err2)
 	require.False(t, sid2.Valid())
 
-	sid3, err3 := steamid.ResolveSID64(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
+	sid3, err3 := steamid.Resolve(context.Background(), "http://steamcommunity.com/profiles/76561197961279983")
 	require.NoError(t, err3)
 	require.Equal(t, sid3, steamid.New(76561197961279983))
 
-	sid4, err4 := steamid.ResolveSID64(context.Background(), "[U:1:1014255]")
+	sid4, err4 := steamid.Resolve(context.Background(), "[U:1:1014255]")
 	require.NoError(t, err4)
 	require.Equal(t, sid4, steamid.New(76561197961279983))
 
-	sid5, err5 := steamid.ResolveSID64(context.Background(), "STEAM_0:1:507127")
+	sid5, err5 := steamid.Resolve(context.Background(), "STEAM_0:1:507127")
 	require.Equal(t, sid5, steamid.New(76561197961279983))
 	require.NoError(t, err5)
 
-	sid6, err6 := steamid.ResolveSID64(context.Background(), "")
+	sid6, err6 := steamid.Resolve(context.Background(), "")
 	require.Error(t, err6)
 	require.False(t, sid6.Valid())
 }

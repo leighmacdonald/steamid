@@ -5,25 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
+	"regexp"
+	"slices"
 
 	"github.com/leighmacdonald/steamid/v4/steamid"
 )
 
 var (
 	ErrIDType = errors.New("invalid sid type")
-
-	ErrReadInput = errors.New("error while reading input")
-
-	ErrWrite = errors.New("failed to write to output file")
-
-	ErrFlush = errors.New("failed to flush contents")
+	ErrWrite  = errors.New("failed to write to output file")
+	ErrFlush  = errors.New("failed to flush contents")
 )
 
 // ParseReader attempt to find all types of steam ids in the data stream provided by the
 // input reader. It will write the output of what it finds to the output writer applying the
 // formatting strings to each value. The formatting string takes the same formatting as the
-// standards fmt.SprintF() and expects one %s token.
+// standard fmt.SprintF() and expects one %s token.
 //
 // A formatting example to place each steam id on a newline: "%s\n"
 //
@@ -33,25 +30,15 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 	switch idType {
 	case "steam":
 	case "steam3":
+	case "steam32":
 	case "steam64":
 	default:
 		return fmt.Errorf("%w: %s", ErrIDType, idType)
 	}
 
 	writer := bufio.NewWriter(output)
-	reader := bufio.NewScanner(input)
 
-	var lines []string
-
-	for reader.Scan() {
-		lines = append(lines, reader.Text())
-	}
-
-	if err := reader.Err(); err != nil {
-		return errors.Join(err, ErrReadInput)
-	}
-
-	for _, id := range steamid.ParseString(strings.Join(lines, "")) {
+	for _, id := range FindReaderSteamIDs(input) {
 		value := ""
 
 		switch idType {
@@ -59,6 +46,8 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 			value = id.String()
 		case "steam3":
 			value = string(id.Steam3())
+		case "steam32":
+			value = fmt.Sprintf("%d", id.AccountID)
 		case "steam":
 			value = string(id.Steam(false))
 		}
@@ -74,4 +63,58 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 	}
 
 	return nil
+}
+
+// FindReaderSteamIDs attempts to parse any strings of any known format within the body to a common SID64 format.
+func FindReaderSteamIDs(reader io.Reader) []steamid.SteamID {
+	var (
+		scanner  = bufio.NewScanner(reader)
+		freSID   = regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
+		freSID64 = regexp.MustCompile(`7656119\d{10}`)
+		freSID3  = regexp.MustCompile(`\[U:1:\d+]`)
+		// Store only unique entries
+		found []steamid.SteamID
+	)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if matches := freSID.FindAllStringSubmatch(line, -1); matches != nil {
+			for _, i := range matches {
+				sid := steamid.New(i[0])
+				if !sid.Valid() {
+					continue
+				}
+				found = append(found, sid)
+			}
+		}
+		if matches := freSID64.FindAllStringSubmatch(line, -1); matches != nil {
+			for _, i := range matches {
+				sid := steamid.New(i[0])
+				if !sid.Valid() {
+					continue
+				}
+				found = append(found, sid)
+			}
+		}
+		if matches := freSID3.FindAllStringSubmatch(line, -1); matches != nil {
+			for _, i := range matches {
+				sid := steamid.New(i[0])
+				if !sid.Valid() {
+					continue
+				}
+				found = append(found, sid)
+			}
+		}
+	}
+
+	var uniq []steamid.SteamID
+	for _, foundID := range found {
+		if !slices.ContainsFunc(uniq, func(sid steamid.SteamID) bool {
+			return foundID.Int64() == sid.Int64()
+		}) {
+			uniq = append(uniq, foundID)
+		}
+	}
+
+	return uniq
 }

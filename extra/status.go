@@ -75,6 +75,33 @@ func SIDSFromStatus(text string) []steamid.SteamID {
 	return ids
 }
 
+func parseMaxPlayers(part string) int {
+	ps := strings.Split(strings.ReplaceAll(part, "(", ""), " ")
+
+	m, errPlayers := strconv.ParseUint(ps[4], 10, 64)
+	if errPlayers != nil {
+		return -1
+	}
+
+	return int(m)
+}
+
+func parseEdits(part string) []int {
+	ed := strings.Split(part, " ")
+
+	l, errEdictCount := strconv.ParseUint(ed[0], 10, 64)
+	if errEdictCount != nil {
+		return []int{-1, -1}
+	}
+
+	m, errEdictTotal := strconv.ParseUint(ed[3], 10, 64)
+	if errEdictTotal != nil {
+		return []int{-1, -1}
+	}
+
+	return []int{int(l), int(m)}
+}
+
 // ParseStatus will parse a status command output into a struct
 // If full is true, it will also parse the address/port of the player.
 // This only works for status commands via RCON/CLI.
@@ -88,40 +115,20 @@ func ParseStatus(status string, full bool) (Status, error) {
 			switch strings.TrimRight(parts[0], " ") {
 			case "hostname":
 				s.ServerName = parts[1]
-
 			case "version":
 				s.Version = parts[1]
-
 			case "map":
 				s.Map = strings.Split(parts[1], " ")[0]
-
 			case "tags":
 				s.Tags = strings.Split(parts[1], ",")
-
 			case "players":
-				ps := strings.Split(strings.ReplaceAll(parts[1], "(", ""), " ")
-
-				m, errPlayers := strconv.ParseUint(ps[4], 10, 64)
-				if errPlayers != nil {
-					return Status{}, errors.Join(errPlayers, ErrParsePlayers)
+				if maxPlayers := parseMaxPlayers(parts[1]); maxPlayers > 0 {
+					s.PlayersMax = maxPlayers
 				}
-
-				s.PlayersMax = int(m)
-
 			case "edicts":
-				ed := strings.Split(parts[1], " ")
-
-				l, errEdictCount := strconv.ParseUint(ed[0], 10, 64)
-				if errEdictCount != nil {
-					return Status{}, errors.Join(errEdictCount, ErrParseEdict)
+				if ed := parseEdits(parts[1]); ed[0] > 0 && ed[1] > 0 {
+					s.Edicts = ed
 				}
-
-				m, errEdictTotal := strconv.ParseUint(ed[3], 10, 64)
-				if errEdictTotal != nil {
-					return Status{}, errors.Join(errEdictTotal, ErrParseEdictTotal)
-				}
-
-				s.Edicts = []int{int(l), int(m)}
 			}
 
 			continue
