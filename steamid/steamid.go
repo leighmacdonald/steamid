@@ -31,16 +31,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	urlVanity    = "https://api.steampowered.com/ISteamUser/ResolveVanityURL/v0001/?"
-	BaseGID      = uint64(103582791429521408)
-	BaseSID      = uint64(76561197960265728)
-	InstanceMask = 0x000FFFFF
-	ClanMask     = (InstanceMask + 1) >> 1
-	Lobby        = (InstanceMask + 1) >> 2
-	MMSLobby     = (InstanceMask + 1) >> 3
-)
-
 var (
 	httpClient    *http.Client //nolint:gochecknoglobals
 	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
@@ -54,203 +44,6 @@ var (
 	reSteam2     *regexp.Regexp //nolint:gochecknoglobals
 	reSteam3     *regexp.Regexp //nolint:gochecknoglobals
 )
-
-var (
-	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set.
-	ErrNoAPIKey = errors.New("no steam web api key, to obtain one see: " +
-		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
-	ErrInvalidKey         = errors.New("invalid steam api key length, must be 32 chars or 0 to remove it")
-	ErrInvalidSID         = errors.New("invalid steam id")
-	ErrEmptyString        = errors.New("invalid id, string empty")
-	ErrSIDConvertInt64    = errors.New("failed to convert id to int64")
-	ErrInvalidGID         = errors.New("invalid gid")
-	ErrDecodeSID          = errors.New("could not decode steamid value")
-	ErrUnmarshalStringSID = errors.New("failed to unmarshal string to SteamID")
-	ErrRequestCreate      = errors.New("failed to create request")
-	ErrInvalidStatusCode  = errors.New("invalid status code")
-	ErrResponsePerform    = errors.New("failed to perform request")
-	ErrResponseBody       = errors.New("failed to read response body")
-	ErrResolveVanityGID   = errors.New("failed to resolve group vanity name")
-	ErrInvalidQueryValue  = errors.New("invalid query value")
-	ErrInvalidQueryLen    = errors.New("invalid value length")
-)
-
-// AppID is the id associated with games/apps.
-type AppID uint32
-
-// SID represents a SteamID
-// STEAM_0:0:86173181.
-type SID string
-
-// Universe describes the 6 known steam universe
-// Universes 0 to 3 are common, 4 Dev not exist in all games, 5 RC is removed out from some source files "// no such universe anymore".
-type Universe int
-
-const (
-	UniverseInvalid Universe = iota
-	UniversePublic
-	UniverseBeta
-	UniverseInternal
-	UniverseDev
-	UniverseRC
-)
-
-func (u Universe) String() string {
-	switch u {
-	case UniversePublic:
-		return "Public"
-	case UniverseBeta:
-		return "Beta"
-	case UniverseInternal:
-		return "Internal"
-	case UniverseDev:
-		return "Dev"
-	case UniverseRC:
-		return "RC"
-	case UniverseInvalid:
-		fallthrough
-	default:
-		return "Individual/Unspecified"
-	}
-}
-
-// AccountType is split into 10 types for a Steam account, of which 4 can be created today.
-// Users of an "Individual" account are temporarily referred to as having a "Pending" account, which has a
-// textual representation of "STEAM_ID_PENDING" until their account credentials are verified with Steam's
-// authentication servers, a process usually complete by the time a server is fully connected to. Accounts of the
-// type "Invalid" have a textual representation of "UNKNOWN" and are used for bots and accounts which do not belong
-// to another class.
-//
-// Multi-user chats use the "T" character. Steam group (clan) chats use the "c" character. Steam lobbies
-// use Chat IDs and use the "L" character.
-type AccountType int
-
-const (
-	AccountTypeInvalid AccountType = iota
-	AccountTypeIndividual
-	AccountTypeMultiSeat
-	AccountTypeGameServer
-	AccountTypeAnonGameServer
-	AccountTypePending
-	AccountTypeContentServer
-	AccountTypeClan
-	AccountTypeChat
-	AccountTypeP2PSuperSeeder
-	AccountTypeAnonUser
-)
-
-func (ac AccountType) String() string {
-	switch ac {
-	case AccountTypeIndividual:
-		return "Individual"
-	case AccountTypeMultiSeat:
-		return "MultiSeat"
-	case AccountTypeGameServer:
-		return "Game Server"
-	case AccountTypeAnonGameServer:
-		return "Anon Game Server"
-	case AccountTypePending:
-		return "Pending"
-	case AccountTypeContentServer:
-		return "Content Server"
-	case AccountTypeClan:
-		return "Clan"
-	case AccountTypeChat:
-		return "Chat"
-	case AccountTypeP2PSuperSeeder:
-		return "P2P SuperSeeder"
-	case AccountTypeAnonUser:
-		return "Anon User"
-	case AccountTypeInvalid:
-		fallthrough
-	default:
-		return "Invalid"
-	}
-}
-
-func (ac AccountType) Letter() string {
-	switch ac {
-	case AccountTypeIndividual:
-		return "U"
-	case AccountTypeMultiSeat:
-		return "M"
-	case AccountTypeGameServer:
-		return "G"
-	case AccountTypeAnonGameServer:
-		return "A"
-	case AccountTypePending:
-		return "P"
-	case AccountTypeContentServer:
-		return "C"
-	case AccountTypeClan:
-		return "g"
-	case AccountTypeChat:
-		return "T"
-	case AccountTypeP2PSuperSeeder:
-		return ""
-	case AccountTypeAnonUser:
-		return "a"
-	case AccountTypeInvalid:
-		fallthrough
-	default:
-		return "I"
-	}
-}
-
-func accountTypeFromLetter(l string) AccountType {
-	switch l {
-	case "U":
-		return AccountTypeIndividual
-	case "M":
-		return AccountTypeMultiSeat
-	case "G":
-		return AccountTypeGameServer
-	case "A":
-		return AccountTypeAnonGameServer
-	case "P":
-		return AccountTypePending
-	case "C":
-		return AccountTypeContentServer
-	case "g":
-		return AccountTypeClan
-	case "T":
-		return AccountTypeChat
-	case "":
-		return AccountTypeP2PSuperSeeder
-	case "a":
-		return AccountTypeAnonUser
-	case "I":
-		return AccountTypeInvalid
-	case "i":
-		fallthrough
-	default:
-		return AccountTypeInvalid
-	}
-}
-
-type Instance int
-
-const (
-	InstanceAll Instance = iota
-	InstanceDesktop
-	InstanceConsole
-	InstanceWeb
-)
-
-func (i Instance) String() string {
-	switch i {
-	case InstanceAll:
-		return "All"
-	case InstanceDesktop:
-		return "Desktop"
-	case InstanceConsole:
-		return "Console"
-	case InstanceWeb:
-		return "Web"
-	default:
-		return ""
-	}
-}
 
 // SteamID represents a Steam64
 //
@@ -267,143 +60,171 @@ type SteamID struct {
 	Universe    Universe
 }
 
-func New(input any) SteamID {
+func fromSteam2Strings(match []string) SteamID {
 	sid := SteamID{
 		AccountID:   0,
 		Instance:    InstanceAll,
 		AccountType: AccountTypeInvalid,
 		Universe:    UniverseInvalid,
 	}
+	universeInt, errUniverseInt := strconv.ParseUint(match[1], 10, 64)
+	if errUniverseInt != nil {
+		return sid
+	}
 
+	intVal, errIntVal := strconv.ParseUint(match[2], 10, 64)
+	if errIntVal != nil {
+		return sid
+	}
+
+	accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
+	if errAccountIDInt != nil {
+		return sid
+	}
+
+	if universeInt > 0 {
+		sid.Universe = Universe(universeInt)
+	} else {
+		sid.Universe = UniversePublic
+	}
+
+	sid.AccountType = AccountTypeIndividual
+	sid.Instance = InstanceDesktop
+	sid.AccountID = SID32((accountIDInt * 2) + intVal)
+
+	return sid
+}
+
+func fromSteam3Strings(match []string) SteamID {
+	sid := SteamID{AccountID: 0, Instance: InstanceAll, AccountType: AccountTypeInvalid, Universe: UniverseInvalid}
+	ir := match[1]
+	universeInt, errUniverseInt := strconv.ParseUint(match[2], 10, 64)
+	if errUniverseInt != nil {
+		return sid
+	}
+
+	accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
+	if errAccountIDInt != nil {
+		return sid
+	}
+
+	sid.Universe = Universe(universeInt)
+	sid.AccountID = SID32(accountIDInt)
+	switch ir {
+	case "U":
+		sid.Instance = InstanceDesktop
+	case "A":
+		sid.Instance = InstanceAll
+	case "C":
+		sid.Instance = InstanceConsole
+	case "W":
+		sid.Instance = InstanceWeb
+	}
+
+	switch ir {
+	case "c":
+		sid.Instance |= ClanMask
+		sid.AccountType = AccountTypeChat
+	case "L":
+		sid.Instance |= Lobby
+	default:
+		sid.AccountType = accountTypeFromLetter(ir)
+	}
+
+	return sid
+}
+
+func fromUInt64(intVal uint64) SteamID {
+	// 76561198132612090 -> 76561198132612090
+	sid := SteamID{AccountID: 0, Instance: InstanceAll, AccountType: AccountTypeInvalid, Universe: UniverseInvalid}
+	sid.Universe = UniversePublic
+	sid.AccountType = AccountTypeIndividual
+	sid.Instance = InstanceDesktop
+	sid.AccountID = SID32(intVal)
+
+	return sid
+}
+
+func fromAccountID(accountID uint64) SteamID {
+	// 172346362 -> 76561198132612090
+	sid := SteamID{AccountID: 0, Instance: InstanceAll, AccountType: AccountTypeInvalid, Universe: UniverseInvalid}
+	sid.AccountID = SID32((accountID & 0xFFFFFFFF) >> 0)
+	sid.Instance = Instance(accountID >> 32 & 0xFFFFF)
+	sid.AccountType = AccountType(accountID >> 52 & 0xF)
+	sid.Universe = Universe(accountID >> 56)
+
+	return sid
+}
+
+var invalidSID = SteamID{AccountID: 0, Instance: InstanceAll, AccountType: AccountTypeInvalid, Universe: UniverseInvalid} //nolint:gochecknoglobals
+
+// New accepts the following forms of steamid:
+//
+// Steam64:
+// - "76561198045011302"
+// - int64(76561198045011302)
+// - uint64(76561198045011302)
+// Steam3:
+// - "[U:1:84745574]"
+// Steam:
+// - "STEAM_0:0:42372787"
+// AccountID:
+// - int(84745574)
+// - int32(84745574)
+// - int64(84745574)
+//
+// Returned SteamID should be verified with the SteamID.Valid method.
+func New(input any) SteamID {
 	var value string
 
 	switch v := input.(type) {
 	case string:
-		if v == "0" {
-			return sid
+		if v == "0" || v == "" {
+			return invalidSID
 		}
 		value = v
 	case uint64:
 		if v == 0 {
-			return sid
+			return invalidSID
 		}
-
+		value = fmt.Sprintf("%d", v)
+	case int32:
+		if v == 0 {
+			return invalidSID
+		}
 		value = fmt.Sprintf("%d", v)
 	case int:
 		if v == 0 {
-			return sid
+			return invalidSID
 		}
-
 		value = fmt.Sprintf("%d", v)
 	case int64:
 		if v == 0 {
-			return sid
+			return invalidSID
 		}
-
 		value = fmt.Sprintf("%d", v)
-	case float64:
-		if v == 0 {
-			return sid
-		}
-
-		value = fmt.Sprintf("%d", int64(v))
 	default:
-		return sid
-	}
-
-	if value == "" {
-		return sid
+		return invalidSID
 	}
 
 	// steam2
-	if match := reSteam2.FindStringSubmatch(value); match != nil {
-		universeInt, errUniverseInt := strconv.ParseUint(match[1], 10, 64)
-		if errUniverseInt != nil {
-			return sid
-		}
-
-		intVal, errIntVal := strconv.ParseUint(match[2], 10, 64)
-		if errIntVal != nil {
-			return sid
-		}
-
-		accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
-		if errAccountIDInt != nil {
-			return sid
-		}
-
-		if universeInt > 0 {
-			sid.Universe = Universe(universeInt)
-		} else {
-			sid.Universe = UniversePublic
-		}
-
-		sid.AccountType = AccountTypeIndividual
-		sid.Instance = InstanceDesktop
-		sid.AccountID = SID32((accountIDInt * 2) + intVal)
-
-		return sid
-	}
-
-	// steam3
-	if match := reSteam3.FindStringSubmatch(value); match != nil {
-		ir := match[1]
-		universeInt, errUniverseInt := strconv.ParseUint(match[2], 10, 64)
-		if errUniverseInt != nil {
-			return sid
-		}
-
-		accountIDInt, errAccountIDInt := strconv.ParseUint(match[3], 10, 64)
-		if errAccountIDInt != nil {
-			return sid
-		}
-
-		sid.Universe = Universe(universeInt)
-		sid.AccountID = SID32(accountIDInt)
-		switch ir {
-		case "U":
-			sid.Instance = InstanceDesktop
-		case "A":
-			sid.Instance = InstanceAll
-		case "C":
-			sid.Instance = InstanceConsole
-		case "W":
-			sid.Instance = InstanceWeb
-		}
-
-		switch ir {
-		case "c":
-			sid.Instance |= ClanMask
-			sid.AccountType = AccountTypeChat
-		case "L":
-			sid.Instance |= Lobby
-		default:
-			sid.AccountType = accountTypeFromLetter(ir)
-		}
-		return sid
+	if match2 := reSteam2.FindStringSubmatch(value); match2 != nil {
+		return fromSteam2Strings(match2)
+	} else if match3 := reSteam3.FindStringSubmatch(value); match3 != nil {
+		return fromSteam3Strings(match3)
 	}
 
 	// uint64 version
 	intVal, err := strconv.ParseUint(value, 10, 64)
 	if err != nil {
-		return sid
+		return invalidSID
 	}
 
 	if intVal < BaseSID {
-		// 172346362 -> 76561198132612090
-		sid.Universe = UniversePublic
-		sid.AccountType = AccountTypeIndividual
-		sid.Instance = InstanceDesktop
-		sid.AccountID = SID32(intVal)
-	} else {
-		// 76561198132612090 -> 76561198132612090
-		sid.AccountID = SID32((intVal & 0xFFFFFFFF) >> 0)
-		sid.Instance = Instance(intVal >> 32 & 0xFFFFF)
-		sid.AccountType = AccountType(intVal >> 52 & 0xF)
-		sid.Universe = Universe(intVal >> 56)
+		return fromUInt64(intVal)
 	}
 
-	return sid
+	return fromAccountID(intVal)
 }
 
 func (t *SteamID) Equal(id SteamID) bool {
@@ -524,7 +345,7 @@ func (t *SteamID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalText implements encoding.TextMarshaler which is used by the yaml package for marshalling
+// MarshalText implements encoding.TextMarshaler which is used by the yaml package for marshalling.
 func (t *SteamID) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }
@@ -537,36 +358,6 @@ func (t *SteamID) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*t = sid
 	return nil
-}
-
-// SID32 represents a Steam32
-// 172346362.
-type SID32 uint32
-
-// SID3 represents a Steam3
-// [U:1:172346362].
-type SID3 string
-
-type Collection []SteamID
-
-func (c Collection) ToStringSlice() []string {
-	var s []string
-
-	for _, st := range c {
-		s = append(s, st.String())
-	}
-
-	return s
-}
-
-func (c Collection) Contains(sid64 SteamID) bool {
-	for _, player := range c {
-		if player.Int64() == sid64.Int64() {
-			return true
-		}
-	}
-
-	return false
 }
 
 func KeyConfigured() bool {
@@ -711,12 +502,12 @@ func ResolveVanity(ctx context.Context, query string) (SteamID, error) {
 	return vanityResp.Response.SteamID, nil
 }
 
-// ResolveSID64 tries to retrieve a SteamID64 using a query (search).
+// Resolve tries to retrieve a SteamID from a profile URL.
 //
 // If an error occurs or the SteamID was unable to be resolved from the query
 // then am error is returned.
 // TODO try and resolve len(17) && len(9) failed conversions as vanity.
-func ResolveSID64(ctx context.Context, query string) (SteamID, error) {
+func Resolve(ctx context.Context, query string) (SteamID, error) {
 	query = strings.ReplaceAll(query, " ", "")
 	if strings.Contains(query, "steamcommunity.com/profiles/") {
 		if string(query[len(query)-1]) == "/" {
@@ -748,61 +539,6 @@ func ResolveSID64(ctx context.Context, query string) (SteamID, error) {
 	}
 
 	return ResolveVanity(ctx, query)
-}
-
-// ParseString attempts to parse any strings of any known format within the body to a common SID64 format.
-func ParseString(body string) []SteamID {
-	freSID := regexp.MustCompile(`STEAM_0:[01]:[0-9][0-9]{0,8}`)
-	freSID64 := regexp.MustCompile(`7656119\d{10}`)
-	freSID3 := regexp.MustCompile(`\[U:1:\d+]`)
-
-	// Store only unique entries
-	found := make(map[int64]bool)
-	m0 := freSID.FindAllStringSubmatch(body, -1)
-	m1 := freSID64.FindAllStringSubmatch(body, -1)
-	m2 := freSID3.FindAllStringSubmatch(body, -1)
-
-	for _, i := range m0 {
-		sid := New(i[0])
-		found[sid.Int64()] = true
-	}
-
-	for _, i := range m1 {
-		s := New(i[0])
-		if !s.Valid() {
-			continue
-		}
-
-		found[s.Int64()] = true
-	}
-
-	for _, i := range m2 {
-		sid := New(i[0])
-		found[sid.Int64()] = true
-	}
-
-	var ids []SteamID
-	for k := range found {
-		ids = append(ids, New(k))
-	}
-
-	var uniq []SteamID
-	for _, id := range ids {
-		isFound := false
-		for _, uid := range uniq {
-			if uid.Int64() == id.Int64() {
-				isFound = true
-				break
-			}
-		}
-
-		if isFound {
-			continue
-		}
-
-		uniq = append(uniq, id)
-	}
-	return ids
 }
 
 func init() {
