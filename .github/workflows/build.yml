@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Test
     environment: master
-    needs: [lint, staticheck]
+    needs: [lint, staticcheck]
     steps:
       - uses: actions/checkout@v4
         with:
