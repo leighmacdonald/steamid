@@ -2,6 +2,7 @@ package steamid_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	_ "github.com/glebarez/go-sqlite"
 	"github.com/leighmacdonald/steamid/v4/steamid"
 	"github.com/stretchr/testify/require"
 )
@@ -112,6 +114,34 @@ func TestJSON(t *testing.T) {
 	expectedGID := steamid.New(103582791441572968)
 
 	require.Equal(t, expectedGID.Int64(), r.GID.Int64())
+}
+
+func TestSQL(t *testing.T) {
+	t.Parallel()
+
+	db, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	_, errCreate := db.Exec(`CREATE TABLE test (steam64 integer primary key, steam text, steam3 string, accountID integer)`, nil)
+	require.NoError(t, errCreate)
+
+	testID := steamid.New(76561197970669109)
+	_, errInsert := db.Exec(`INSERT INTO test (steam64, steam, steam3, accountID) VALUES (?, ?, ?, ?)`,
+		testID, testID.Steam(false), testID.Steam3(), testID.AccountID)
+	require.NoError(t, errInsert)
+
+	var (
+		outSteam64   steamid.SteamID
+		outSteam     steamid.SteamID
+		outSteam3    steamid.SteamID
+		outAccountID steamid.SteamID
+	)
+	require.NoError(t, db.QueryRow(`SELECT steam64, steam, steam3, accountID from test WHERE steam64 = ?`, testID).
+		Scan(&outSteam64, &outSteam, &outSteam3, &outAccountID))
+	require.Equal(t, testID, outSteam64)
+	require.Equal(t, testID, outSteam)
+	require.Equal(t, testID, outSteam3)
+	require.Equal(t, testID, outAccountID)
 }
 
 func TestYAML(t *testing.T) {

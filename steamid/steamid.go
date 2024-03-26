@@ -14,6 +14,7 @@ package steamid
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -358,6 +359,38 @@ func (t *SteamID) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*t = sid
 	return nil
+}
+
+func (t *SteamID) Scan(value interface{}) error {
+	if value == nil {
+		*t = SteamID{}
+		return nil
+	}
+
+	switch input := value.(type) {
+	case string:
+		if input == "" {
+			*t = SteamID{}
+			return nil
+		}
+		sid := New(input)
+		if sid.Valid() {
+			*t = sid
+			return nil
+		}
+	case int64:
+		sid := New(input)
+		if sid.Valid() {
+			*t = sid
+			return nil
+		}
+	}
+
+	return ErrInvalidSID
+}
+
+func (t SteamID) Value() (driver.Value, error) {
+	return t.Int64(), nil
 }
 
 func KeyConfigured() bool {
