@@ -308,7 +308,7 @@ func (t *SteamID) Steam3() SID3 {
 //	return t.AccountType == AccountTypeChat && (int(t.Instance)&Lobby) || (int(t.Instance)&MMSLobby))
 // }
 
-func (t *SteamID) MarshalJSON() ([]byte, error) {
+func (t SteamID) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + t.String() + "\""), nil
 }
 
@@ -347,7 +347,7 @@ func (t *SteamID) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalText implements encoding.TextMarshaler which is used by the yaml package for marshalling.
-func (t *SteamID) MarshalText() ([]byte, error) {
+func (t SteamID) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }
 
