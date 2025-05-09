@@ -1,7 +1,7 @@
 # steamid
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build](https://github.com/leighmacdonald/steamweb/actions/workflows/check.yml/badge.svg?branch=master)](https://github.com/leighmacdonald/steamweb/actions/workflows/check.yml)
+[![Build](https://github.com/leighmacdonald/steamweb/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/leighmacdonald/steamweb/actions/workflows/build.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/ab0e6cc629b8434ba5dc0803be18bbb4)](https://www.codacy.com/manual/leighmacdonald/steamid?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=leighmacdonald/steamid&amp;utm_campaign=Badge_Grade)
 [![Maintainability](https://api.codeclimate.com/v1/badges/3cc77c69032c4e0a917d/maintainability)](https://codeclimate.com/github/leighmacdonald/steamid/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/3cc77c69032c4e0a917d/test_coverage)](https://codeclimate.com/github/leighmacdonald/steamid/test_coverage)
