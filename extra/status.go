@@ -34,14 +34,29 @@ var (
 // Status represents the data from the `status` rcon/console command.
 
 type Status struct {
-	PlayersCount int
-	PlayersMax   int
-	ServerName   string
-	Version      string
-	Edicts       []int
-	Tags         []string
-	Map          string
-	Players      []Player
+	PlayersCount int      `json:"players_count"`
+	PlayersMax   int      `json:"players_max"`
+	ServerName   string   `json:"server_name"`
+	Version      string   `json:"version"`
+	Edicts       []int    `json:"edicts"`
+	Tags         []string `json:"tags"`
+	Map          string   `json:"map"`
+	Players      []Player `json:"players"`
+	IPInfo       IPInfo   `json:"ip_info"`
+}
+
+type IPInfo struct {
+	SDR               bool   `json:"sdr"`
+	FakeIP            string `json:"fake_ip"`
+	FakePort          int    `json:"fake_port"`
+	LocalIP           string `json:"local_ip"`
+	LocalPort         int    `json:"local_port"`
+	PublicIP          string `json:"public_ip"`
+	PublicPort        int    `json:"public_port"`
+	SourceTVIP        string `json:"source_tv_ip"`
+	SourceTVFPort     int    `json:"source_tv_port"`
+	SourceTVLocalIP   string `json:"source_tv_local_ip"`
+	SourceTVLocalPort int    `json:"source_tv_local_port"`
 }
 
 // Player represents all the available data for a player in a `status` output table.
@@ -102,6 +117,43 @@ func parseEdits(part string) []int {
 	return []int{int(l), int(m)}
 }
 
+var (
+	rxIP = regexp.MustCompile(`^(\d+\.\d+\.\d+\.\d+):(\d+)\s+\(public ip:(\s+\d+\.\d+\.\d+\.\d+)\)$`)
+	// Are these localized in any way?
+	rxIPSDR    = regexp.MustCompile(`^(\d+\.\d+\.\d+\.\d+):(\d+)\s+\(local:\s+(\d+\.\d+\.\d+\.\d+):(\d+)\)\s+\(public IP from Steam:\s+(\d+\.\d+\.\d+\.\d+)\)$`)
+	rxSourceTV = regexp.MustCompile(`^(\d+\.\d+\.\d+\.\d+):(\d+).+?(\d+\.\d+\.\d+\.\d+):(\d+)\)$`)
+)
+
+func parseUDPIP(part string, info *IPInfo) {
+	matches := rxIPSDR.FindStringSubmatch(part)
+	if matches != nil {
+		info.FakeIP = matches[1]
+		info.FakePort, _ = strconv.Atoi(matches[2])
+		info.LocalIP = matches[3]
+		info.LocalPort, _ = strconv.Atoi(matches[4])
+		info.PublicIP = matches[5]
+		info.SDR = strings.HasPrefix(info.FakeIP, "169.254")
+
+		return
+	}
+
+	matches = rxIP.FindStringSubmatch(part)
+	if matches != nil {
+		info.PublicIP = matches[1]
+		info.PublicPort, _ = strconv.Atoi(matches[2])
+	}
+}
+
+func parseSourceTV(part string, info *IPInfo) {
+	matches := rxSourceTV.FindStringSubmatch(part)
+	if matches != nil {
+		info.SourceTVIP = matches[1]
+		info.SourceTVFPort, _ = strconv.Atoi(matches[2])
+		info.SourceTVLocalIP = matches[3]
+		info.SourceTVLocalPort, _ = strconv.Atoi(matches[4])
+	}
+}
+
 // ParseStatus will parse a status command output into a struct
 // If full is true, it will also parse the address/port of the player.
 // This only works for status commands via RCON/CLI.
@@ -109,29 +161,36 @@ func ParseStatus(status string, full bool) (Status, error) {
 	var s Status
 
 	for _, line := range strings.Split(status, "\n") {
-		parts := strings.SplitN(line, ": ", 2)
+		if !strings.HasPrefix(line, "#") {
+			parts := strings.SplitN(line, ":", 2)
 
-		if len(parts) == 2 {
-			switch strings.TrimRight(parts[0], " ") {
-			case "hostname":
-				s.ServerName = parts[1]
-			case "version":
-				s.Version = parts[1]
-			case "map":
-				s.Map = strings.Split(parts[1], " ")[0]
-			case "tags":
-				s.Tags = strings.Split(parts[1], ",")
-			case "players":
-				if maxPlayers := parseMaxPlayers(parts[1]); maxPlayers > 0 {
-					s.PlayersMax = maxPlayers
+			if len(parts) == 2 {
+				content := strings.TrimSpace(parts[1])
+				switch strings.TrimRight(parts[0], " ") {
+				case "udp/ip":
+					parseUDPIP(content, &s.IPInfo)
+				case "sourcetv":
+					parseSourceTV(content, &s.IPInfo)
+				case "hostname":
+					s.ServerName = content
+				case "version":
+					s.Version = content
+				case "map":
+					s.Map = strings.Split(content, " ")[0]
+				case "tags":
+					s.Tags = strings.Split(content, ",")
+				case "players":
+					if maxPlayers := parseMaxPlayers(content); maxPlayers > 0 {
+						s.PlayersMax = maxPlayers
+					}
+				case "edicts":
+					if ed := parseEdits(content); ed[0] > 0 && ed[1] > 0 {
+						s.Edicts = ed
+					}
 				}
-			case "edicts":
-				if ed := parseEdits(parts[1]); ed[0] > 0 && ed[1] > 0 {
-					s.Edicts = ed
-				}
+
+				continue
 			}
-
-			continue
 		} else {
 			var m []string
 
@@ -207,6 +266,7 @@ func ParseStatus(status string, full bool) (Status, error) {
 
 				s.Players = append(s.Players, p)
 			}
+
 		}
 	}
 
