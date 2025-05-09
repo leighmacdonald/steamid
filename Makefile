@@ -41,7 +41,7 @@ lint_golangci:
 	go tool golangci-lint run --timeout 3m
 
 static:
-	go tool staticcheck -go 1.20 ./...
+	go tool staticcheck -go 1.24 ./...
 
 dev_db:
 	docker compose -f docker-compose-dev.yml up --force-recreate -V postgres
