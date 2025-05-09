@@ -58,7 +58,9 @@ All formats are parsed from the file and duplicates are removed`,
 		}
 
 		if err := extra.ParseReader(reader, writer, format, idType); err != nil {
-			log.Fatalf(err.Error())
+			log.Println(err.Error()) //nolint:govet,staticcheck
+
+			os.Exit(1)
 		}
 		os.Exit(0)
 	},

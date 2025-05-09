@@ -52,7 +52,7 @@ func ParseReader(input io.Reader, output io.Writer, format string, idType string
 			value = string(id.Steam(false))
 		}
 
-		_, errWrite := writer.WriteString(fmt.Sprintf(format, value))
+		_, errWrite := fmt.Fprintf(writer, format, value)
 		if errWrite != nil {
 			return errors.Join(errWrite, ErrWrite)
 		}

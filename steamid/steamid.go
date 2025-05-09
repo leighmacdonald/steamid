@@ -84,14 +84,14 @@ func fromSteam2Strings(match []string) SteamID {
 	}
 
 	if universeInt > 0 {
-		sid.Universe = Universe(universeInt)
+		sid.Universe = Universe(universeInt) //nolint:gosec
 	} else {
 		sid.Universe = UniversePublic
 	}
 
 	sid.AccountType = AccountTypeIndividual
 	sid.Instance = InstanceDesktop
-	sid.AccountID = SID32((accountIDInt * 2) + intVal)
+	sid.AccountID = SID32((accountIDInt * 2) + intVal) //nolint:gosec
 
 	return sid
 }
@@ -109,8 +109,8 @@ func fromSteam3Strings(match []string) SteamID {
 		return sid
 	}
 
-	sid.Universe = Universe(universeInt)
-	sid.AccountID = SID32(accountIDInt)
+	sid.Universe = Universe(universeInt) //nolint:gosec
+	sid.AccountID = SID32(accountIDInt)  //nolint:gosec
 	switch ir {
 	case "U":
 		sid.Instance = InstanceDesktop
@@ -141,7 +141,7 @@ func fromUInt64(intVal uint64) SteamID {
 	sid.Universe = UniversePublic
 	sid.AccountType = AccountTypeIndividual
 	sid.Instance = InstanceDesktop
-	sid.AccountID = SID32(intVal)
+	sid.AccountID = SID32(intVal) //nolint:gosec
 
 	return sid
 }
@@ -149,10 +149,10 @@ func fromUInt64(intVal uint64) SteamID {
 func fromAccountID(accountID uint64) SteamID {
 	// 172346362 -> 76561198132612090
 	sid := SteamID{AccountID: 0, Instance: InstanceAll, AccountType: AccountTypeInvalid, Universe: UniverseInvalid}
-	sid.AccountID = SID32((accountID & 0xFFFFFFFF) >> 0)
-	sid.Instance = Instance(accountID >> 32 & 0xFFFFF)
-	sid.AccountType = AccountType(accountID >> 52 & 0xF)
-	sid.Universe = Universe(accountID >> 56)
+	sid.AccountID = SID32((accountID & 0xFFFFFFFF) >> 0) //nolint:gosec
+	sid.Instance = Instance(accountID >> 32 & 0xFFFFF)   //nolint:gosec
+	sid.AccountType = AccountType(accountID >> 52 & 0xF) //nolint:gosec
+	sid.Universe = Universe(accountID >> 56)             //nolint:gosec
 
 	return sid
 }
@@ -237,7 +237,7 @@ func (t *SteamID) String() string {
 }
 
 func (t *SteamID) Int64() int64 {
-	return int64((uint64(t.Universe << 56)) | (uint64(t.AccountType) << 52) | (uint64(t.Instance) << 32) | uint64(t.AccountID))
+	return int64((uint64(t.Universe << 56)) | (uint64(t.AccountType) << 52) | (uint64(t.Instance) << 32) | uint64(t.AccountID)) //nolint:gosec
 }
 
 // Valid ensures the value is at least large enough to be valid
@@ -422,7 +422,7 @@ func RandSID64() SteamID {
 	sid.Universe = UniversePublic
 	sid.AccountType = AccountTypeIndividual
 	sid.Instance = InstanceDesktop
-	sid.AccountID = SID32(id)
+	sid.AccountID = SID32(id) //nolint:gosec
 
 	return sid
 }
