@@ -98,7 +98,7 @@ func parseMaxPlayers(part string) int {
 		return -1
 	}
 
-	return int(m)
+	return int(m) //nolint:gosec
 }
 
 func parseEdits(part string) []int {
@@ -114,7 +114,7 @@ func parseEdits(part string) []int {
 		return []int{-1, -1}
 	}
 
-	return []int{int(l), int(m)}
+	return []int{int(l), int(m)} //nolint:gosec
 }
 
 var (
@@ -230,7 +230,7 @@ func ParseStatus(status string, full bool) (Status, error) {
 						return Status{}, errors.Join(errUint, ErrParseSeconds)
 					}
 
-					totalSec += int(v) * []int{1, 60, 3600}[i]
+					totalSec += int(v) * []int{1, 60, 3600}[i] //nolint:gosec
 				}
 
 				dur, errDur := time.ParseDuration(fmt.Sprintf("%ds", totalSec))
@@ -240,12 +240,12 @@ func ParseStatus(status string, full bool) (Status, error) {
 				}
 
 				p := Player{
-					UserID:        int(userID),
+					UserID:        int(userID), //nolint:gosec
 					Name:          m[2],
 					SID:           steamid.New(m[3]),
 					ConnectedTime: dur,
-					Ping:          int(ping),
-					Loss:          int(loss),
+					Ping:          int(ping), //nolint:gosec
+					Loss:          int(loss), //nolint:gosec
 					State:         m[7],
 				}
 
@@ -261,12 +261,11 @@ func ParseStatus(status string, full bool) (Status, error) {
 					}
 
 					p.IP = ip
-					p.Port = int(port)
+					p.Port = int(port) //nolint:gosec
 				}
 
 				s.Players = append(s.Players, p)
 			}
-
 		}
 	}
 

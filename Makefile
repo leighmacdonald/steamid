@@ -33,22 +33,15 @@ test:
 
 fmt:
 	#gci write . --skip-generated -s standard -s default
-	gofumpt -l -w .
+	go tool gofumpt -l -w .
 
 check: fmt lint_golangci static
 
 lint_golangci:
-	@golangci-lint run --timeout 3m
+	go tool golangci-lint run --timeout 3m
 
 static:
-	@staticcheck -go 1.20 ./...
-
-check_deps:
-	go install github.com/daixiang0/gci@v0.13.0
-	go install mvdan.cc/gofumpt@v0.6.0
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2
-	go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
-	go install github.com/goreleaser/goreleaser@v1.24.0
+	go tool staticcheck -go 1.20 ./...
 
 dev_db:
 	docker compose -f docker-compose-dev.yml up --force-recreate -V postgres
