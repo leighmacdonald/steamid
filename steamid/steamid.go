@@ -1,7 +1,9 @@
 // Package steamid provides conversion to and from all steam ID formats.
 //
-// If you wish to resolve vanity names like https://steamcommunity.com/id/SQUIRRELLY into
-// steam id you must first obtain an API key at https://steamcommunity.com/dev/apikey.
+// Resolving vanity names like https://steamcommunity.com/id/SQUIRRELLY
+// is done by using https://steamcommunity/id/SQUIRRELLY/?xml=1 URL
+// If you want to avoid potentially being rate limited you can set a Steam Web API key
+// which can be obtained from https://steamcommunity.com/dev/apikey
 //
 // You can then set it for the package to use:
 //
@@ -9,6 +11,7 @@
 //
 //	With a steam api key set you can now use the following functions:
 //
+//		steamid.Resolve()
 //		steamid.ResolveVanity()
 package steamid
 
@@ -36,6 +39,7 @@ var (
 	httpClient    *http.Client //nolint:gochecknoglobals
 	reGroupIDTags = regexp.MustCompile(`<groupID64>(\w+)</groupID64>`)
 	reGroupURL    = regexp.MustCompile(`steamcommunity.com/groups/(\S+)/?`)
+	reProfileID   = regexp.MustCompile(`<steamID64>(\w+)</steamID64>`)
 	apiKey        string //nolint:gochecknoglobals
 
 	// BuildVersion is replaced at compile time with the current tag or revision.
@@ -499,20 +503,20 @@ type vanityURLResponse struct {
 // This only accepts the name or last portion of the /id/ profile link
 // For https://steamcommunity.com/id/SQUIRRELLY the value is SQUIRRELLY.
 func ResolveVanity(ctx context.Context, query string) (SteamID, error) {
-	if apiKey == "" {
-		return SteamID{}, ErrNoAPIKey
+	usingApiKey := apiKey != ""
+	u := "https://steamcommunity.com/id/" + query + "/?xml=1"
+	if usingApiKey {
+		u = urlVanity + url.Values{"key": {apiKey}, "vanityurl": {query}}.Encode()
 	}
-
-	u := urlVanity + url.Values{"key": {apiKey}, "vanityurl": {query}}.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return SteamID{}, errors.Join(err, ErrRequestCreate)
+		return invalidSID, errors.Join(err, ErrRequestCreate)
 	}
 
 	resp, errDo := httpClient.Do(req)
 	if errDo != nil {
-		return SteamID{}, errors.Join(errDo, ErrResponsePerform)
+		return invalidSID, errors.Join(errDo, ErrResponsePerform)
 	}
 
 	defer func() {
@@ -520,16 +524,29 @@ func ResolveVanity(ctx context.Context, query string) (SteamID, error) {
 	}()
 
 	var vanityResp vanityURLResponse
-	if errUnmarshal := json.NewDecoder(resp.Body).Decode(&vanityResp); err != nil {
-		return SteamID{}, errors.Join(errUnmarshal, ErrDecodeSID)
+	if usingApiKey {
+		if errUnmarshal := json.NewDecoder(resp.Body).Decode(&vanityResp); errUnmarshal != nil {
+			return invalidSID, errors.Join(errUnmarshal, ErrDecodeSID)
+		}
+	} else {
+		vanityResp.Response.Success = 1
+		content, errRead := io.ReadAll(resp.Body)
+		if errRead != nil {
+			return invalidSID, errors.Join(errRead, ErrResponseBody)
+		}
+		steamIDTags := reProfileID.FindStringSubmatch(string(content))
+		if len(steamIDTags) >= 2 {
+			vanityResp.Response.SteamID = New(steamIDTags[1])
+		} else {
+			return invalidSID, ErrResponseBody
+		}
 	}
 
 	if vanityResp.Response.Success != 1 {
-		return SteamID{}, fmt.Errorf("%w: %d", ErrInvalidStatusCode, vanityResp.Response.Success)
+		return invalidSID, fmt.Errorf("%w: %d", ErrInvalidStatusCode, vanityResp.Response.Success)
 	}
-
 	if !vanityResp.Response.SteamID.Valid() {
-		return SteamID{}, fmt.Errorf("%w: %s", ErrInvalidSID, vanityResp.Response.SteamID.String())
+		return invalidSID, fmt.Errorf("%w: %s", ErrInvalidSID, vanityResp.Response.SteamID.String())
 	}
 
 	return vanityResp.Response.SteamID, nil
