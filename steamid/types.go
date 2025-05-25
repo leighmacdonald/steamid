@@ -16,9 +16,6 @@ const (
 )
 
 var (
-	// ErrNoAPIKey is returned for functions that require an API key to use when one has not been set.
-	ErrNoAPIKey = errors.New("no steam web api key, to obtain one see: " +
-		"https://steamcommunity.com/dev/apikey and call steamid.SetKey()")
 	ErrInvalidKey         = errors.New("invalid steam api key length, must be 32 chars or 0 to remove it")
 	ErrInvalidSID         = errors.New("invalid steam id")
 	ErrEmptyString        = errors.New("invalid id, string empty")

@@ -190,15 +190,15 @@ func TestResolveGID(t *testing.T) {
 func TestResolveSID(t *testing.T) {
 	t.Parallel()
 
-	if !steamid.KeyConfigured() {
-		t.Skip("steam_api_key unset, SetKey() required")
-
-		return
-	}
-
 	sid1, err := steamid.Resolve(context.Background(), "https://steamcommunity.com/id/SQUIRRELLY")
 	require.NoError(t, err)
 	require.Equal(t, sid1, steamid.New(76561197961279983))
+
+	if !steamid.KeyConfigured() {
+		t.Skip("STEAM_TOKEN unset, skipping authenticated requests")
+
+		return
+	}
 
 	sid2, err2 := steamid.Resolve(context.Background(), "https://steamcommunity.com/id/FAKEXXXXXXXXXX123123")
 	require.Error(t, err2)
