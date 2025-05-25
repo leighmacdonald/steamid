@@ -8,11 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/yaml.v3"
-
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/leighmacdonald/steamid/v4/steamid"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRandSID64(t *testing.T) {
