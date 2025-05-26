@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/leighmacdonald/steamid/v4/extra"
-
 	"github.com/stretchr/testify/require"
 )
 

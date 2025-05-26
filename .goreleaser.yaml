@@ -1,5 +1,5 @@
 project_name: steamid
-
+version: 2
 # frontend is already output to dist, --clean will wipe it, so we use another location
 dist: build
 
@@ -42,13 +42,13 @@ archives:
       - README.md
     format_overrides:
       - goos: windows
-        format: zip
+        formats: ['zip']
 
 checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 release:
   github:
