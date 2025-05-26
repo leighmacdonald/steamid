@@ -76,7 +76,7 @@ Flags:
 ## Library Usage
 
 To see how to use this as a library, please check the 
-generated [docs](https://pkg.go.dev/github.com/leighmacdonald/steamid)
+generated [docs](https://pkg.go.dev/github.com/leighmacdonald/steamid/v4)
 
 ## Vanity URL
 
