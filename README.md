@@ -153,6 +153,3 @@ to steam ids. These are not directly related to steamid conversions, but are a c
 - Parse all steamids from a input `io.Reader` into a `io.Writer` using a custom format. This is the 
 programmatic way to do what the cli `parse` command does: `extra.ParseReader(input io.Reader, output io.Writer, format string, idType string) error`
 
-## Docs
-
-Here you can find the full [documentation](https://pkg.go.dev/github.com/leighmacdonald/steamid).
